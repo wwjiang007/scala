@@ -5,7 +5,7 @@ import org.junit.Test
 
 class MapTest {
 
-  @Test def builderCompare1: Unit = {
+  @Test def builderCompare1(): Unit = {
     for (size <- 0 to 100;
          start <- 0 to 10;
          overwrite <- List(true, false)) {
@@ -39,7 +39,7 @@ class MapTest {
 
     }
   }
-  @Test def builderCompare2: Unit = {
+  @Test def builderCompare2(): Unit = {
     for (size <- 0 to 100;
          start <- 0 to 10;
          overwrite <- List(true, false)) {
@@ -68,7 +68,7 @@ class MapTest {
     }
   }
 
-  @Test def addition: Unit = {
+  @Test def addition(): Unit = {
     for (size <- 0 to 100;
          start <- 0 to 10) {
       val tBuilder = TreeMap.newBuilder[String, String]
@@ -128,14 +128,14 @@ class MapTest {
         for (form2 <- List(addList, addMap, addArray, addSortSame, addSortReverse, addTreeSame, addTreeReverse)) {
           val info2 = s"form2[${form2.getClass.getSimpleName}]=$form2, $info"
 
-          assertEquals(info2, expected, (emptySB ++= form ++= form2).result.toList)
-          assertEquals(info2, expected, (emptyTB ++= form ++= form2).result.toList)
+          assertEquals(info2, expected, (emptySB ++= form ++= form2).result().toList)
+          assertEquals(info2, expected, (emptyTB ++= form ++= form2).result().toList)
 
-          assertEquals(info2, expected, ((form.foldLeft(emptySB)(_ += _)) ++= form2).result.toList)
-          assertEquals(info2, expected, ((form.foldLeft(emptyTB)(_ += _)) ++= form2).result.toList)
+          assertEquals(info2, expected, ((form.foldLeft(emptySB)(_ += _)) ++= form2).result().toList)
+          assertEquals(info2, expected, ((form.foldLeft(emptyTB)(_ += _)) ++= form2).result().toList)
 
-          assertEquals(info2, expected, (form2.foldLeft(form.foldLeft(emptySB)(_ += _))(_ += _)).result.toList)
-          assertEquals(info2, expected, (form2.foldLeft(form.foldLeft(emptySB)(_ += _))(_ += _)).result.toList)
+          assertEquals(info2, expected, (form2.foldLeft(form.foldLeft(emptySB)(_ += _))(_ += _)).result().toList)
+          assertEquals(info2, expected, (form2.foldLeft(form.foldLeft(emptySB)(_ += _))(_ += _)).result().toList)
 
         }
       }

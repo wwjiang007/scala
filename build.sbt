@@ -32,17 +32,12 @@
  *   - to modularize the Scala compiler or library further
  */
 
-import sbt.TestResult
-import sbt.testing.TestSelector
-
-import scala.build._
-import VersionUtil._
-import scala.tools.nsc.util.ScalaClassLoader.URLClassLoader
+import scala.build._, VersionUtil._
 
 // Non-Scala dependencies:
-val junitDep          = "junit"                          % "junit"                            % "4.12"
+val junitDep          = "junit"                          % "junit"                            % "4.13.1"
 val junitInterfaceDep = "com.novocode"                   % "junit-interface"                  % "0.11"                            % "test"
-val scalacheckDep     = "org.scalacheck"                %% "scalacheck"                       % "1.14.3"                          % "test"
+val scalacheckDep     = "org.scalacheck"                %% "scalacheck"                       % "1.15.1"                          % "test"
 val jolDep            = "org.openjdk.jol"                % "jol-core"                         % "0.13"
 val asmDep            = "org.scala-lang.modules"         % "scala-asm"                        % versionProps("scala-asm.version")
 val jlineDep          = "org.jline"                      % "jline"                            % versionProps("jline.version")
@@ -75,7 +70,7 @@ lazy val publishSettings : Seq[Setting[_]] = Seq(
 // should not be set directly. It is the same as the Maven version and derived automatically from `baseVersion` and
 // `baseVersionSuffix`.
 globalVersionSettings
-Global / baseVersion       := "2.13.4"
+Global / baseVersion       := "2.13.5"
 Global / baseVersionSuffix := "SNAPSHOT"
 ThisBuild / organization   := "org.scala-lang"
 ThisBuild / homepage       := Some(url("https://www.scala-lang.org"))
@@ -93,414 +88,6 @@ ThisBuild / headerLicense  := Some(HeaderLicense.Custom(
      |additional information regarding copyright ownership.
      |""".stripMargin
 ))
-
-Global / mimaReferenceVersion := Some("2.13.0")
-
-import com.typesafe.tools.mima.core._
-val mimaFilterSettings = Seq {
-  mimaBinaryIssueFilters ++= Seq[ProblemFilter](
-    ProblemFilters.exclude[InaccessibleMethodProblem]("java.lang.Object.<clinit>"),
-    ProblemFilters.exclude[Problem]("scala.reflect.internal.*"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.reflect.runtime.JavaMirrors#JavaMirror.typeTag"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.reflect.runtime.JavaMirrors$JavaMirror$typeTagCache$"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.reflect.api.TypeTags.TypeTagImpl"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.reflect.api.Universe.TypeTagImpl"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.reflect.macros.Attachments$"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.reflect.macros.Attachments.cloneAttachments"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.reflect.macros.NonemptyAttachments.cloneAttachments"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.StringContext.processUnicode"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.StringContext$InvalidUnicodeEscapeException"),
-    ProblemFilters.exclude[DirectAbstractMethodProblem]("scala.collection.immutable.ArraySeq.stepper"),
-    ProblemFilters.exclude[ReversedAbstractMethodProblem]("scala.collection.immutable.ArraySeq.stepper"),
-    ProblemFilters.exclude[DirectAbstractMethodProblem]("scala.collection.mutable.ArraySeq.stepper"),
-    ProblemFilters.exclude[ReversedAbstractMethodProblem]("scala.collection.mutable.ArraySeq.stepper"),
-    ProblemFilters.exclude[FinalClassProblem]("scala.collection.ArrayOps$GroupedIterator"),
-    ProblemFilters.exclude[MissingTypesProblem]("scala.collection.ArrayOps$ArrayIterator$mcB$sp"),
-    ProblemFilters.exclude[MissingTypesProblem]("scala.collection.ArrayOps$ArrayIterator$mcZ$sp"),
-    ProblemFilters.exclude[MissingTypesProblem]("scala.collection.ArrayOps$ReverseIterator$mcV$sp"),
-    ProblemFilters.exclude[MissingTypesProblem]("scala.collection.ArrayOps$ReverseIterator$mcD$sp"),
-    ProblemFilters.exclude[MissingTypesProblem]("scala.collection.ArrayOps$ArrayIterator$mcJ$sp"),
-    ProblemFilters.exclude[MissingTypesProblem]("scala.collection.ArrayOps$ArrayIterator$mcV$sp"),
-    ProblemFilters.exclude[MissingTypesProblem]("scala.collection.ArrayOps$ReverseIterator$mcB$sp"),
-    ProblemFilters.exclude[MissingTypesProblem]("scala.collection.ArrayOps$GroupedIterator"),
-    ProblemFilters.exclude[MissingTypesProblem]("scala.collection.ArrayOps$ArrayIterator"),
-    ProblemFilters.exclude[MissingTypesProblem]("scala.collection.ArrayOps$ReverseIterator$mcF$sp"),
-    ProblemFilters.exclude[MissingTypesProblem]("scala.collection.ArrayOps$ReverseIterator$mcC$sp"),
-    ProblemFilters.exclude[MissingTypesProblem]("scala.collection.ArrayOps$ArrayIterator$mcF$sp"),
-    ProblemFilters.exclude[MissingTypesProblem]("scala.collection.ArrayOps$ReverseIterator"),
-    ProblemFilters.exclude[MissingTypesProblem]("scala.collection.ArrayOps$ReverseIterator$mcS$sp"),
-    ProblemFilters.exclude[MissingTypesProblem]("scala.collection.ArrayOps$ReverseIterator$mcI$sp"),
-    ProblemFilters.exclude[MissingTypesProblem]("scala.collection.ArrayOps$ArrayIterator$mcC$sp"),
-    ProblemFilters.exclude[MissingTypesProblem]("scala.collection.ArrayOps$ReverseIterator$mcJ$sp"),
-    ProblemFilters.exclude[MissingTypesProblem]("scala.collection.ArrayOps$ArrayIterator$mcD$sp"),
-    ProblemFilters.exclude[MissingTypesProblem]("scala.collection.ArrayOps$ReverseIterator$mcZ$sp"),
-    ProblemFilters.exclude[MissingTypesProblem]("scala.collection.ArrayOps$ArrayIterator$mcI$sp"),
-    ProblemFilters.exclude[MissingTypesProblem]("scala.collection.ArrayOps$ArrayIterator$mcS$sp"),
-    ProblemFilters.exclude[FinalMethodProblem]("scala.collection.immutable.Stream.find"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.sys.process.BasicIO.connectNoOp"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.sys.process.BasicIO.connectToStdIn"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.mutable.HashTable.removeEntry0"),
-    ProblemFilters.exclude[ReversedMissingMethodProblem]("scala.reflect.runtime.SynchronizedSymbols#SynchronizedSymbol.scala$reflect$runtime$SynchronizedSymbols$SynchronizedSymbol$$super$typeConstructor"),
-    ProblemFilters.exclude[IncompatibleMethTypeProblem]("scala.reflect.io.ZipArchive.getDir"),
-    ProblemFilters.exclude[IncompatibleResultTypeProblem]("scala.reflect.io.FileZipArchive.allDirs"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.reflect.io.FileZipArchive.allDirsByDottedName"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.reflect.runtime.SynchronizedSymbols#SynchronizedSymbol.typeConstructor"),
-    ProblemFilters.exclude[IncompatibleMethTypeProblem]("scala.reflect.io.ZipArchive.getDir"),
-    ProblemFilters.exclude[IncompatibleResultTypeProblem]("scala.reflect.io.FileZipArchive.allDirs"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.VectorBuilder.nullSlotAndCopy"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.VectorBuilder.gotoPosWritable1"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.VectorBuilder.gotoPosWritable1$default$4"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.VectorBuilder.nullSlotAndCopy$default$3"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.VectorIterator.nullSlotAndCopy"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.VectorIterator.gotoPosWritable1"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.VectorIterator.gotoPosWritable1$default$4"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.VectorIterator.nullSlotAndCopy$default$3"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector.nullSlotAndCopy"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector.focus"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector.gotoPosWritable1"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector.gotoPosWritable1$default$4"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector.nullSlotAndCopy$default$3"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.VectorPointer.nullSlotAndCopy"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.VectorPointer.gotoPosWritable1"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.VectorPointer.gotoPosWritable1$default$4"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.VectorPointer.nullSlotAndCopy$default$3"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.mutable.HashMap.mapValuesInPlaceImpl"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.RedBlackTree.countInRange"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.util.hashing.MurmurHash3.emptyMapHash"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.util.hashing.MurmurHash3.tuple2Hash"),
-    ProblemFilters.exclude[MissingTypesProblem]("scala.collection.immutable.MapKeyValueTupleHashIterator"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.MapKeyValueTupleHashIterator.productArity"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.MapKeyValueTupleHashIterator.canEqual"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.MapKeyValueTupleHashIterator._2"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.MapKeyValueTupleHashIterator._1"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.MapKeyValueTupleHashIterator.productIterator"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.MapKeyValueTupleHashIterator.productPrefix"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.MapKeyValueTupleHashIterator.productElementNames"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.MapKeyValueTupleHashIterator.productElementName"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.MapKeyValueTupleHashIterator.productElement"),
-    ProblemFilters.exclude[ReversedMissingMethodProblem]("scala.reflect.runtime.SynchronizedTypes.scala$reflect$runtime$SynchronizedTypes$$super$defineNormalized"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.reflect.runtime.SynchronizedTypes.defineNormalized"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.reflect.runtime.JavaUniverse.defineNormalized"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.reflect.io.ZipArchive.RootEntry"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.Set$SetNIterator"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Set#Set1.filterImpl"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Set#Set2.filterImpl"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Set#Set3.filterImpl"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Set#Set4.filterImpl"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Map#Map1.filterImpl"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Map#Map2.filterImpl"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Map#Map3.filterImpl"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Map#Map4.filterImpl"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.reflect.io.AbstractFile.unsafeToByteArray"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.reflect.io.VirtualFile.unsafeToByteArray"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.reflect.io.ZipArchive#Entry.unsafeToByteArray"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.reflect.io.NoAbstractFile.unsafeToByteArray"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.reflect.runtime.JavaUniverse#PerRunReporting.deprecationWarning"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.annotation.nowarn$"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.annotation.nowarn"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.reflect.runtime.Settings#*.clearSetByUser"),
-
-    // in  other  version, classes mixing scala.collection.IndexedSeqOps need be recompiled to wire to the new static mixin forwarder method all super calls to method foldRight(java.lang.Object,scala.Function2)java.lang.Object
-    // in  other  version, classes mixing scala.collection.IndexedSeqOps .. head()java.lang.Object
-    // in  other  version, classes mixing scala.collection.IndexedSeqOps .. headOption()scala.Option
-    // in current version, classes mixing scala.collection.MapView       .. className()java.lang.String       // i.e. backwards bincompat, the others are forwards compatibility
-    // in  other  version, classes mixing scala.collection.MapView       .. keys()scala.collection.Iterable
-    // in  other  version, classes mixing scala.collection.MapView       .. stringPrefix()java.lang.String
-    // in  other  version, classes mixing scala.collection.MapView       .. values()scala.collection.Iterable
-    // in  other  version, classes mixing scala.collection.SeqMap        .. stringPrefix()java.lang.String
-    // in  other  version, classes mixing scala.collection.SortedMap     .. equals(java.lang.Object)Boolean
-    // in  other  version, classes mixing scala.collection.SortedSet     .. equals(java.lang.Object)Boolean
-    ProblemFilters.exclude[NewMixinForwarderProblem]("scala.collection.IndexedSeqOps.foldRight"),
-    ProblemFilters.exclude[NewMixinForwarderProblem]("scala.collection.IndexedSeqOps.head"),
-    ProblemFilters.exclude[NewMixinForwarderProblem]("scala.collection.IndexedSeqOps.headOption"),
-    ProblemFilters.exclude[NewMixinForwarderProblem]("scala.collection.MapView.className"),
-    ProblemFilters.exclude[NewMixinForwarderProblem]("scala.collection.MapView.keys"),
-    ProblemFilters.exclude[NewMixinForwarderProblem]("scala.collection.MapView.stringPrefix"),
-    ProblemFilters.exclude[NewMixinForwarderProblem]("scala.collection.MapView.values"),
-    ProblemFilters.exclude[NewMixinForwarderProblem]("scala.collection.SeqMap.stringPrefix"),
-    ProblemFilters.exclude[NewMixinForwarderProblem]("scala.collection.SortedMap.equals"),
-    ProblemFilters.exclude[NewMixinForwarderProblem]("scala.collection.SortedSet.equals"),
-
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.RedBlackTree.*"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.RedBlackTree$EqualsIterator"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.RedBlackTree#TreeIterator.findLeftMostOrPopOnEmpty"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.RedBlackTree#TreeIterator.popNext"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.RedBlackTree#TreeIterator.lookahead"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.RedBlackTree#TreeIterator.lookahead_="),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.RedBlackTree#TreeIterator.goRight"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.RedBlackTree#TreeIterator.stackOfNexts"),
-
-
-    ////////////////////////////////////////////////////////////////////////////// Vector backward compatiblity
-
-    // Vector, VectorBuilder and VectorIterator do not extend VectorPointer anymore; all features are package-private
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.VectorPointer"),
-    ProblemFilters.exclude[MissingTypesProblem]("scala.collection.immutable.VectorBuilder"),
-    ProblemFilters.exclude[MissingTypesProblem]("scala.collection.immutable.VectorIterator"),
-
-    // Applies to Vector, VectorBuilder, VectorIterator
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector*.copyRange"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector*.depth"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector*.depth_="),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector*.display0"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector*.display0_="),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector*.display1"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector*.display1_="),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector*.display2"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector*.display2_="),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector*.display3"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector*.display3_="),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector*.display4"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector*.display4_="),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector*.display5"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector*.display5_="),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector*.gotoFreshPosWritable0"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector*.gotoFreshPosWritable1"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector*.gotoNewBlockStart"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector*.gotoNextBlockStart"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector*.gotoNextBlockStartWritable"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector*.gotoPos"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector*.gotoPosWritable0"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector*.initFrom"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector*.preClean"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector*.stabilize"),
-
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.VectorIterator.remainingElementCount"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.VectorIterator.remainingVector"),
-
-    // Some other package-private methods have been removed, changed or added
-    ProblemFilters.exclude[IncompatibleMethTypeProblem]("scala.collection.immutable.VectorBuilder.initFrom"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector.dirty"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector.dirty_="),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector.initIterator"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector.updateAt"),
-    ProblemFilters.exclude[ReversedMissingMethodProblem]("scala.collection.immutable.Vector.vectorSlice"),
-    ProblemFilters.exclude[ReversedMissingMethodProblem]("scala.collection.immutable.Vector.vectorSliceCount"),
-    ProblemFilters.exclude[ReversedMissingMethodProblem]("scala.collection.immutable.Vector.vectorSlicePrefixLength"),
-    ProblemFilters.exclude[ReversedMissingMethodProblem]("scala.collection.immutable.Vector.slice0"),
-
-    // Vector was final, now sealed, and has no accessible constructor
-    ProblemFilters.exclude[AbstractClassProblem]("scala.collection.immutable.Vector"),
-    ProblemFilters.exclude[FinalMethodProblem]("scala.collection.immutable.Vector.take"),
-    ProblemFilters.exclude[FinalMethodProblem]("scala.collection.immutable.Vector.takeRight"),
-    ProblemFilters.exclude[FinalMethodProblem]("scala.collection.immutable.Vector.length"),
-    ProblemFilters.exclude[FinalMethodProblem]("scala.collection.immutable.Vector.drop"),
-    ProblemFilters.exclude[FinalMethodProblem]("scala.collection.immutable.Vector.appendedAll"),
-    ProblemFilters.exclude[FinalMethodProblem]("scala.collection.immutable.Vector.iterator"),
-    ProblemFilters.exclude[FinalMethodProblem]("scala.collection.immutable.Vector.slice"),
-    ProblemFilters.exclude[FinalMethodProblem]("scala.collection.immutable.Vector.dropRight"),
-    ProblemFilters.exclude[FinalMethodProblem]("scala.collection.immutable.Vector.head"),
-    ProblemFilters.exclude[FinalMethodProblem]("scala.collection.immutable.Vector.last"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector.this"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector.apply"),
-
-    ////////////////////////////////////////////////////////////////////////////// Vector forward compatiblity
-
-    // Vector was final, now sealed, and has no accessible constructor
-    ProblemFilters.exclude[FinalClassProblem]("scala.collection.immutable.Vector"),
-
-    // Package-private features in the new implementation to ignore
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.Vector0"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.Vector0$"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.Vector1"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.Vector2"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.Vector3"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.Vector4"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.Vector5"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.Vector6"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.VectorSliceBuilder"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.VectorStepperBase"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.IntVectorStepper"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.LongVectorStepper"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.DoubleVectorStepper"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.AnyVectorStepper"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.VectorInline"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.VectorInline$"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.VectorBuilder.getData"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.VectorBuilder.initSparse"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.BigVector"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.NewVectorIterator"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.VectorStatics"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.VectorStatics$"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector.appendedAll0"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector.slice0"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector.mapElems"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector.mapElems1"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector.append1IfSpace"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector.tinyAppendLimit"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector.vectorSlice"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector.vectorSliceCount"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector.vectorSlicePrefixLength"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector.ioob"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector.prefix1"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.VectorImpl"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector.fillSparse"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.VectorIterator.it"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.VectorIterator.it_="),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector.filterImpl"),
-
-
-    ProblemFilters.exclude[IncompatibleTemplateDefProblem]("scala.collection.immutable.VectorMap$Tombstone"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.VectorMap$Tombstone$NextOfKin"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.VectorMap$Tombstone$NextOfKin$"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.VectorMap$Tombstone$Kinless$"),
-    ProblemFilters.exclude[MissingTypesProblem]("scala.collection.immutable.VectorMap$Tombstone$"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.VectorMap#Tombstone.unapply"),
-
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.reflect.runtime.ReflectSetup.phaseWithId"),
-    ProblemFilters.exclude[ReversedMissingMethodProblem]("scala.reflect.runtime.ReflectSetup.scala$reflect$runtime$ReflectSetup$_setter_$phaseWithId_="),
-    ProblemFilters.exclude[ReversedMissingMethodProblem]("scala.reflect.runtime.ReflectSetup.phaseWithId"),
-
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Map#EmptyMap.concat"),
-
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.RedBlackTree#TreeIterator.ordering"),
-    ProblemFilters.exclude[ReversedMissingMethodProblem]("scala.collection.SortedSet.scala$collection$SortedSet$$super=uals"),
-    ProblemFilters.exclude[ReversedMissingMethodProblem]("scala.collection.SortedMap.scala$collection$SortedMap$$super=uals"),
-
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.Vector.prependedAll0"),
-
-    // async
-    ProblemFilters.exclude[ReversedMissingMethodProblem]("scala.reflect.runtime.ReflectSetup.phaseWithId"),
-
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.reflect.macros.Attachments.removeElement"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.reflect.macros.Attachments.addElement"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.reflect.macros.Attachments.containsElement"),
-
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.reflect.runtime.Settings.async"),
-
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.reflect.api.Internals#InternalApi.markForAsyncTransform"),
-
-    // Fix for scala/bug#11976
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#AbstractJMapWrapper.filterImpl"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#AbstractJMapWrapper.strictOptimizedCollect"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#AbstractJMapWrapper.strictOptimizedConcat"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#AbstractJMapWrapper.strictOptimizedFlatMap"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#AbstractJMapWrapper.strictOptimizedFlatten"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#AbstractJMapWrapper.strictOptimizedMap"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#AbstractJMapWrapper.strictOptimizedZip"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#JCollectionWrapper.filterImpl"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#JCollectionWrapper.strictOptimizedCollect"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#JCollectionWrapper.strictOptimizedConcat"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#JCollectionWrapper.strictOptimizedFlatMap"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#JCollectionWrapper.strictOptimizedFlatten"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#JCollectionWrapper.strictOptimizedMap"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#JCollectionWrapper.strictOptimizedZip"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#JIterableWrapper.filterImpl"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#JIterableWrapper.strictOptimizedCollect"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#JIterableWrapper.strictOptimizedConcat"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#JIterableWrapper.strictOptimizedFlatMap"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#JIterableWrapper.strictOptimizedFlatten"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#JIterableWrapper.strictOptimizedMap"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#JIterableWrapper.strictOptimizedZip"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#JListWrapper.filterImpl"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#JListWrapper.strictOptimizedCollect"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#JListWrapper.strictOptimizedConcat"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#JListWrapper.strictOptimizedFlatMap"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#JListWrapper.strictOptimizedFlatten"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#JListWrapper.strictOptimizedMap"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#JListWrapper.strictOptimizedZip"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#JPropertiesWrapper.filterImpl"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#JPropertiesWrapper.strictOptimizedCollect"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#JPropertiesWrapper.strictOptimizedConcat"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#JPropertiesWrapper.strictOptimizedFlatMap"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#JPropertiesWrapper.strictOptimizedFlatten"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#JPropertiesWrapper.strictOptimizedMap"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#JPropertiesWrapper.strictOptimizedZip"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#JSetWrapper.filterImpl"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#JSetWrapper.strictOptimizedCollect"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#JSetWrapper.strictOptimizedConcat"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#JSetWrapper.strictOptimizedFlatMap"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#JSetWrapper.strictOptimizedFlatten"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#JSetWrapper.strictOptimizedMap"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.convert.JavaCollectionWrappers#JSetWrapper.strictOptimizedZip"),
-    ProblemFilters.exclude[MissingTypesProblem]("scala.collection.convert.JavaCollectionWrappers$AbstractJMapWrapper"),
-    ProblemFilters.exclude[MissingTypesProblem]("scala.collection.convert.JavaCollectionWrappers$JCollectionWrapper"),
-    ProblemFilters.exclude[MissingTypesProblem]("scala.collection.convert.JavaCollectionWrappers$JConcurrentMapWrapper"),
-    ProblemFilters.exclude[MissingTypesProblem]("scala.collection.convert.JavaCollectionWrappers$JIterableWrapper"),
-    ProblemFilters.exclude[MissingTypesProblem]("scala.collection.convert.JavaCollectionWrappers$JListWrapper"),
-    ProblemFilters.exclude[MissingTypesProblem]("scala.collection.convert.JavaCollectionWrappers$JMapWrapper"),
-    ProblemFilters.exclude[MissingTypesProblem]("scala.collection.convert.JavaCollectionWrappers$JMapWrapperLike"),
-    ProblemFilters.exclude[MissingTypesProblem]("scala.collection.convert.JavaCollectionWrappers$JPropertiesWrapper"),
-    ProblemFilters.exclude[MissingTypesProblem]("scala.collection.convert.JavaCollectionWrappers$JSetWrapper"),
-    ProblemFilters.exclude[MissingTypesProblem]("scala.collection.mutable.WeakHashMap"),
-
-    // Fix for scala/bug#12059
-    ProblemFilters.exclude[MissingClassProblem](s"scala.collection.MapView$$Keys"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.MapView$Values"),
-
-    // Documentation for scala.jdk package
-    ProblemFilters.exclude[MissingClassProblem]("scala.jdk.package"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.jdk.package$"),
-
-    // Artifacts of fixing deprecation warnings
-    ProblemFilters.exclude[IncompatibleMethTypeProblem]("scala.sys.process.ProcessImpl#ThreadProcess.this"),  // private[process]
-    ProblemFilters.exclude[IncompatibleResultTypeProblem]("scala.sys.process.ProcessImpl#PipeSink.sink"),     // private[process]
-    ProblemFilters.exclude[IncompatibleResultTypeProblem]("scala.sys.process.ProcessImpl#PipeSource.source"), // private[process]
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.HashMap$KeySet"),                 // private
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.HashMap$HashKeySet"),             // private
-    ProblemFilters.exclude[MissingTypesProblem]("scala.concurrent.impl.Promise$Transformation"),              // private[concurrent]
-
-    // Private constructor for SeqView.Sorted
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.SeqView#Sorted.this"),
-
-    // private convenience method for copying collections to Arrays (scala/scala#9232)
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.IterableOnce.copyElemsToArray"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.IterableOnce.copyElemsToArray$default$3"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.IterableOnce.copyElemsToArray$default$4"),
-
-    // this is safe because the default cannot be used; instead the single-param overload in
-    // `IterableOnceOps` is chosen (https://github.com/scala/scala/pull/9232#discussion_r501554458)
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.ArraySeq.copyToArray$default$2"),
-
-    // Fix for scala/bug#12009
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.mutable.MutationTracker"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.mutable.MutationTracker$"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.mutable.MutationTracker$CheckedIterator"),
-
-    // Refactor internals of SortedMap/SortedSet for faster building and bulk operations
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.RedBlackTree$RedTree$"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.RedBlackTree$BlackTree"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.RedBlackTree$BlackTree$"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.RedBlackTree$RedTree"),
-    ProblemFilters.exclude[FinalClassProblem]("scala.collection.immutable.RedBlackTree$Tree"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.RedBlackTree#Tree.this"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.RedBlackTree$SetHelper"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.TreeMap.tree0"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.TreeMap$TreeMapBuilder$adder$"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.TreeSet$TreeSetBuilder"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.RedBlackTree$MapHelper"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.RedBlackTree$Helper"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.TreeMap$Adder"),
-    ProblemFilters.exclude[AbstractClassProblem]("scala.collection.immutable.RedBlackTree$Tree"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.RedBlackTree#Tree.isMutable"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.RedBlackTree#Tree.sizeOf"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.RedBlackTree#Tree.isBlack"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.RedBlackTree#Tree.isRed"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.RedBlackTree#Tree.makeImmutable"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.RedBlackTree#Tree.mutableBlack"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.RedBlackTree#Tree.mutableWithK"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.RedBlackTree#Tree.mutableWithV"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.RedBlackTree#Tree.mutableWithKV"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.RedBlackTree#Tree.mutableWithLeft"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.RedBlackTree#Tree.mutableWithRight"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.RedBlackTree#Tree.mutableWithLeftRight"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.RedBlackTree#Tree.mutableBlackWithLeft"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.RedBlackTree#Tree.mutableBlackWithRight"),
-    ProblemFilters.exclude[DirectAbstractMethodProblem]("scala.collection.immutable.RedBlackTree#Tree.black"),
-    ProblemFilters.exclude[DirectAbstractMethodProblem]("scala.collection.immutable.RedBlackTree#Tree.red"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.RedBlackTree#Tree.withKV"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.RedBlackTree#Tree.withV"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.RedBlackTree#Tree.withLeft"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.RedBlackTree#Tree.withRight"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.RedBlackTree#Tree.blackWithLeft"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.RedBlackTree#Tree.blackWithRight"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.RedBlackTree#Tree.withLeftRight"),
-    ProblemFilters.exclude[DirectMissingMethodProblem]("scala.collection.immutable.RedBlackTree#Tree.this"),
-    ProblemFilters.exclude[ReversedAbstractMethodProblem]("scala.collection.immutable.RedBlackTree#Tree.black"),
-    ProblemFilters.exclude[ReversedAbstractMethodProblem]("scala.collection.immutable.RedBlackTree#Tree.red"),
-    ProblemFilters.exclude[MissingClassProblem]("scala.collection.immutable.TreeMap$TreeMapBuilder")
-  ),
-}
 
 // Save MiMa logs
 SavedLogs.settings
@@ -550,9 +137,8 @@ lazy val commonSettings = instanceSettings ++ clearSourceAndResourceDirectories 
   Compile / unmanagedResourceDirectories += (ThisBuild / baseDirectory).value / "src" / thisProject.value.id,
   sourcesInBase := false,
   Compile / scalaSource := (Compile / sourceDirectory).value,
-  Compile / javaSource := (Compile / sourceDirectory).value,
-  // resources are stored along source files in our current layout
-  Compile / resourceDirectory := (Compile / sourceDirectory).value,
+  // for some reason sbt 1.4 issues unused-settings warnings for this, it seems to me incorrectly
+  Global / excludeLintKeys ++= Set(scalaSource),
   // each subproject has to ask specifically for files they want to include
   Compile / unmanagedResources / includeFilter := NothingFilter,
   target := (ThisBuild / baseDirectory).value / "target" / thisProject.value.id,
@@ -799,9 +385,7 @@ lazy val library = configureAsSubproject(project)
       "/project/packaging" -> <packaging>jar</packaging>
     ),
     apiURL := Some(url(s"https://www.scala-lang.org/api/${versionProperties.value.mavenVersion}/")),
-    mimaPreviousArtifacts := mimaReferenceVersion.value.map(organization.value % name.value % _).toSet,
-    mimaCheckDirection := "both",
-    mimaFilterSettings,
+    MimaFilters.mimaSettings,
   )
   .settings(filterDocSources("*.scala" -- regexFileFilter(".*/scala/runtime/.*")))
   .settings(
@@ -834,9 +418,7 @@ lazy val reflect = configureAsSubproject(project)
       "/project/packaging" -> <packaging>jar</packaging>
     ),
     apiURL := Some(url(s"https://www.scala-lang.org/api/${versionProperties.value.mavenVersion}/scala-${thisProject.value.id}/")),
-    mimaPreviousArtifacts := mimaReferenceVersion.value.map(organization.value % name.value % _).toSet,
-    mimaCheckDirection := "both",
-    mimaFilterSettings,
+    MimaFilters.mimaSettings,
   )
   .dependsOn(library)
 
@@ -930,7 +512,7 @@ lazy val interactive = configureAsSubproject(project)
   .settings(
     name := "scala-compiler-interactive",
     description := "Scala Interactive Compiler",
-    scalacOptions in Compile ++= Seq("-Xlint", "-Wconf:cat=deprecation:msg=early.initializers:s"),
+    Compile / scalacOptions ++= Seq("-Xlint", "-Wconf:cat=deprecation&msg=early initializers:s"),
   )
   .dependsOn(compiler)
 
@@ -938,7 +520,7 @@ lazy val repl = configureAsSubproject(project)
   .settings(disableDocs)
   .settings(fatalWarningsSettings)
   .settings(publish / skip := true)
-  .settings(Compile / scalacOptions ++= Seq("-Xlint", "-Wconf:cat=deprecation:msg=early.initializers:s"))
+  .settings(Compile / scalacOptions ++= Seq("-Xlint", "-Wconf:cat=deprecation&msg=early initializers:s"))
   .dependsOn(compiler, interactive)
 
 lazy val replFrontend = configureAsSubproject(Project("repl-frontend", file(".") / "src" / "repl-frontend"))
@@ -958,17 +540,24 @@ lazy val replFrontend = configureAsSubproject(Project("repl-frontend", file(".")
 
 lazy val scaladoc = configureAsSubproject(project)
   .settings(disableDocs)
+  .settings(fatalWarningsSettings)
   .settings(publish / skip := true)
   .settings(
     name := "scala-compiler-doc",
     description := "Scala Documentation Generator",
     Compile / unmanagedResources / includeFilter := "*.html" | "*.css" | "*.gif" | "*.png" | "*.js" | "*.txt" | "*.svg" | "*.eot" | "*.woff" | "*.ttf",
     libraryDependencies ++= ScaladocSettings.webjarResources,
-    Compile / resourceGenerators += ScaladocSettings.extractResourcesFromWebjar
+    Compile / resourceGenerators += ScaladocSettings.extractResourcesFromWebjar,
+    Compile / scalacOptions ++= Seq(
+      "-Xlint",
+      "-feature",
+      "-Wconf:cat=deprecation&msg=early initializers:s",
+    ),
   )
   .dependsOn(compiler)
 
 lazy val scalap = configureAsSubproject(project)
+  .settings(fatalWarningsSettings)
   .settings(
     description := "Scala Bytecode Parser",
     // Include decoder.properties
@@ -993,7 +582,8 @@ lazy val scalap = configureAsSubproject(project)
       val excluded = Set("Memoisable.scala", "Result.scala", "Rule.scala", "Rules.scala", "SeqRule.scala")
       xs filter { x => !excluded(x.getName) }
     },
-    Compile / headerResources := Nil
+    Compile / headerResources := Nil,
+    Compile / scalacOptions ++= Seq("-Xlint", "-feature"),
   )
   .dependsOn(compiler)
 
@@ -1001,10 +591,12 @@ lazy val partest = configureAsSubproject(project)
   .dependsOn(library, reflect, compiler, replFrontend, scalap, scaladoc, testkit)
   .settings(Osgi.settings)
   .settings(AutomaticModuleName.settings("scala.partest"))
+  .settings(fatalWarningsSettings)
   .settings(
     name := "scala-partest",
     description := "Scala Compiler Testing Tool",
     libraryDependencies ++= List(testInterfaceDep, diffUtilsDep, junitDep),
+    Compile / scalacOptions ++= Seq("-feature", "-Xlint"),
     pomDependencyExclusions ++= List((organization.value, "scala-repl-frontend"), (organization.value, "scala-compiler-doc")),
     fixPom(
       "/project/name" -> <name>Scala Partest</name>,
@@ -1016,11 +608,13 @@ lazy val partest = configureAsSubproject(project)
 lazy val tastytest = configureAsSubproject(project)
   .dependsOn(library, reflect, compiler)
   .settings(disableDocs)
+  .settings(fatalWarningsSettings)
   .settings(publish / skip := true)
   .settings(
     name := "scala-tastytest",
     description := "Scala TASTy Integration Testing Tool",
     libraryDependencies ++= List(diffUtilsDep, TastySupport.scala3Compiler),
+    Compile / scalacOptions ++= Seq("-feature", "-Xlint"),
   )
 
 // An instrumented version of BoxesRunTime and ScalaRunTime for partest's "specialized" test category
@@ -1028,6 +622,7 @@ lazy val specLib = project.in(file("test") / "instrumented")
   .dependsOn(library, reflect, compiler)
   .settings(commonSettings)
   .settings(disableDocs)
+  .settings(fatalWarningsSettings)
   .settings(publish / skip := true)
   .settings(
     Compile / sourceGenerators += Def.task {
@@ -1049,7 +644,8 @@ lazy val specLib = project.in(file("test") / "instrumented")
         patch("BoxesRunTime.java", "boxes.patch"),
         patch("ScalaRunTime.scala", "srt.patch")
       )
-    }.taskValue
+    }.taskValue,
+    Compile / scalacOptions ++= Seq("-feature", "-Xlint"),
   )
 
 // The scala version used by the benchmark suites, leave undefined to use the ambient version.")
@@ -1078,10 +674,11 @@ lazy val testkit = configureAsSubproject(project)
   .dependsOn(compiler)
   .settings(Osgi.settings)
   .settings(AutomaticModuleName.settings("scala.testkit"))
+  .settings(fatalWarningsSettings)
   .settings(
     name := "scala-testkit",
     description := "Scala Compiler Testkit",
-    Compile / scalacOptions += "-feature",
+    Compile / scalacOptions ++= Seq("-feature", "-Xlint"),
     libraryDependencies ++= Seq(junitDep, asmDep),
     Compile / unmanagedSourceDirectories := List(baseDirectory.value),
     fixPom(
@@ -1095,16 +692,21 @@ lazy val testkit = configureAsSubproject(project)
 lazy val junit = project.in(file("test") / "junit")
   .dependsOn(testkit, compiler, replFrontend, scaladoc)
   .settings(commonSettings)
-  .settings(Compile / scalacOptions += "-Xlint:-adapted-args,-nullary-unit,_")
-  .settings(Compile / javacOptions ++= Seq("-Xlint"))
   .settings(disableDocs)
+  .settings(fatalWarningsSettings)
   .settings(publish / skip := true)
   .settings(
     Test / fork := true,
     Test / javaOptions += "-Xss1M",
     (Test / forkOptions) := (Test / forkOptions).value.withWorkingDirectory((ThisBuild / baseDirectory).value),
     (Test / testOnly / forkOptions) := (Test / testOnly / forkOptions).value.withWorkingDirectory((ThisBuild / baseDirectory).value),
-    Compile / scalacOptions += "-feature",
+    Compile / scalacOptions ++= Seq(
+      "-feature",
+      "-Xlint:-valpattern,_",
+      "-Wconf:msg=match may not be exhaustive:s", // if we missed a case, all that happens is the test fails
+      "-Ypatmat-exhaust-depth", "40", // despite not caring about patmat exhaustiveness, we still get warnings for this
+    ),
+    Compile / javacOptions ++= Seq("-Xlint"),
     libraryDependencies ++= Seq(junitInterfaceDep, jolDep, diffUtilsDep),
     testOptions += Tests.Argument(TestFrameworks.JUnit, "-a", "-v"),
     Compile / unmanagedSourceDirectories := Nil,
@@ -1120,7 +722,7 @@ lazy val tasty = project.in(file("test") / "tasty")
     Test / fork := true,
     libraryDependencies += junitInterfaceDep,
     testOptions += Tests.Argument(TestFrameworks.JUnit, "-a", "-v"),
-    testOptions in Test += Tests.Argument(
+    Test / testOptions += Tests.Argument(
       s"-Dtastytest.src=${baseDirectory.value}",
       s"-Dtastytest.packageName=tastytest"
     ),
@@ -1185,12 +787,12 @@ def osgiTestProject(p: Project, framework: ModuleID) = p
     testOptions += Tests.Argument(TestFrameworks.JUnit, "-a", "-v", "-q"),
     Test / javaOptions += "-Dscala.bundle.dir=" + (ThisBuild / buildDirectory).value / "osgi",
     Test / Keys.test / forkOptions := (Test / Keys.test / forkOptions).value.withWorkingDirectory((ThisBuild / baseDirectory).value),
-    unmanagedSourceDirectories in Test := List((ThisBuild / baseDirectory).value / "test" / "osgi" / "src"),
-    unmanagedResourceDirectories in Compile := (unmanagedSourceDirectories in Test).value,
-    includeFilter in unmanagedResources in Compile := "*.xml",
-    packageBin in Compile := { // Put the bundle JARs required for the tests into build/osgi
+    Test / unmanagedSourceDirectories := List((ThisBuild / baseDirectory).value / "test" / "osgi" / "src"),
+    Compile / unmanagedResourceDirectories := (Test / unmanagedSourceDirectories).value,
+    Compile / unmanagedResources / includeFilter := "*.xml",
+    Compile / packageBin := { // Put the bundle JARs required for the tests into build/osgi
       val targetDir = (ThisBuild / buildDirectory).value / "osgi"
-      val mappings = ((mkPack in dist).value / "lib").listFiles.collect {
+      val mappings = ((dist / mkPack).value / "lib").listFiles.collect {
         case f if f.getName.startsWith("scala-") && f.getName.endsWith(".jar") => (f, targetDir / f.getName)
       }
       IO.copy(mappings, CopyOptions() withOverwrite true)
@@ -1210,7 +812,7 @@ lazy val partestJavaAgent = Project("partest-javaagent", file(".") / "src" / "pa
     name := "scala-partest-javaagent",
     description := "Scala Compiler Testing Tool (compiler-specific java agent)",
     // add required manifest entry - previously included from file
-    packageOptions in (Compile, packageBin) +=
+    Compile / packageBin / packageOptions +=
       Package.ManifestAttributes( "Premain-Class" -> "scala.tools.partest.javaagent.ProfilingAgent" ),
     // we need to build this to a JAR
     exportJars := true
@@ -1232,25 +834,24 @@ lazy val test = project
     // test sources are compiled in partest run, not here
     IntegrationTest / unmanagedSourceDirectories := Nil,
     IntegrationTest / sources := Nil,
-    fork in IntegrationTest := true,
-    // enable this in 2.13, when tests pass
-    //scalacOptions in Compile += "-Yvalidate-pos:parser,typer",
-    javaOptions in IntegrationTest ++= List("-Xmx2G", "-Dpartest.exec.in.process=true", "-Dfile.encoding=UTF-8", "-Duser.language=en", "-Duser.country=US"),
-    testOptions in IntegrationTest += Tests.Argument("-Dfile.encoding=UTF-8", "-Duser.language=en", "-Duser.country=US"),
+    IntegrationTest / fork := true,
+    Compile / scalacOptions += "-Yvalidate-pos:parser,typer",
+    IntegrationTest / javaOptions ++= List("-Xmx2G", "-Dpartest.exec.in.process=true", "-Dfile.encoding=UTF-8", "-Duser.language=en", "-Duser.country=US"),
+    IntegrationTest / testOptions += Tests.Argument("-Dfile.encoding=UTF-8", "-Duser.language=en", "-Duser.country=US"),
     testFrameworks += new TestFramework("scala.tools.partest.sbt.Framework"),
-    testOptions in IntegrationTest += Tests.Argument("-Dpartest.java_opts=-Xmx1024M -Xms64M"),
-    testOptions in IntegrationTest += Tests.Argument("-Dpartest.scalac_opts=" + (scalacOptions in Compile).value.mkString(" ")),
-    (forkOptions in IntegrationTest) := (forkOptions in IntegrationTest).value.withWorkingDirectory((ThisBuild / baseDirectory).value),
-    testOptions in IntegrationTest += {
-      val cp = (dependencyClasspath in Test).value
+    IntegrationTest / testOptions += Tests.Argument("-Dpartest.java_opts=-Xmx1024M -Xms64M"),
+    IntegrationTest / testOptions += Tests.Argument("-Dpartest.scalac_opts=" + (Compile / scalacOptions).value.mkString(" ")),
+    (IntegrationTest / forkOptions) := (IntegrationTest / forkOptions).value.withWorkingDirectory((ThisBuild / baseDirectory).value),
+    IntegrationTest / testOptions += {
+      val cp = (Test / dependencyClasspath).value
       val baseDir = (ThisBuild / baseDirectory).value
-      val instrumentedJar = (packagedArtifact in (specLib, Compile, packageBin)).value._2
+      val instrumentedJar = (specLib / Compile / packageBin / packagedArtifact).value._2
       Tests.Setup { () =>
         // Copy instrumented.jar (from specLib)to the location where partest expects it.
         IO.copyFile(instrumentedJar, baseDir / "test/files/speclib/instrumented.jar")
       }
     },
-    definedTests in IntegrationTest += new sbt.TestDefinition(
+    IntegrationTest / definedTests += new sbt.TestDefinition(
       "partest",
       // marker fingerprint since there are no test classes
       // to be discovered by sbt:
@@ -1259,10 +860,10 @@ lazy val test = project
         def annotationName = "partest"
       }, true, Array()
     ),
-    executeTests in IntegrationTest := {
+    IntegrationTest / executeTests := {
       val log = streams.value.log
-      val result = (executeTests in IntegrationTest).value
-      val result2 = (executeTests in Test).value
+      val result = (IntegrationTest / executeTests).value
+      val result2 = (Test / executeTests).value
       if (result.overall != TestResult.Error && result.events.isEmpty) {
         // workaround for https://github.com/sbt/sbt/issues/2722
         log.error("No test events found")
@@ -1270,7 +871,7 @@ lazy val test = project
       }
       else result
     },
-    testListeners in IntegrationTest += new PartestTestListener(target.value)
+    IntegrationTest / testListeners += new PartestTestListener(target.value)
   )
 
 lazy val manual = configureAsSubproject(project)
@@ -1278,16 +879,16 @@ lazy val manual = configureAsSubproject(project)
   .settings(publish / skip := true)
   .settings(
     libraryDependencies += "org.scala-lang" % "scala-library" % scalaVersion.value,
-    classDirectory in Compile := (target in Compile).value / "classes"
+    Compile / classDirectory := (Compile / target).value / "classes"
   )
 
 lazy val scalaDist = Project("scala-dist", file(".") / "target" / "scala-dist-dist-src-dummy")
   .settings(commonSettings)
   .settings(disableDocs)
   .settings(
-    mappings in Compile in packageBin ++= {
+    Compile / packageBin / mappings ++= {
       val binBaseDir = buildDirectory.value / "pack"
-      val binMappings = (mkBin in dist).value.pair(Path.relativeTo(binBaseDir), errorIfNone = false)
+      val binMappings = (dist / mkBin).value.pair(Path.relativeTo(binBaseDir), errorIfNone = false)
       // With the way the resource files are spread out over the project sources we can't just add
       // an unmanagedResourceDirectory, so we generate the mappings manually:
       val docBaseDir = (ThisBuild / baseDirectory).value
@@ -1296,15 +897,15 @@ lazy val scalaDist = Project("scala-dist", file(".") / "target" / "scala-dist-di
       val resMappings = resBaseDir ** ("*.html" | "*.css" | "*.gif" | "*.png") pair (p => Path.relativeTo(resBaseDir)(p).map("doc/tools/" + _))
       docMappings ++ resMappings ++ binMappings
     },
-    resourceGenerators in Compile += Def.task {
+    Compile / resourceGenerators += Def.task {
       val command = "fsc, scala, scalac, scaladoc, scalap"
-      val htmlOut = (resourceManaged in Compile).value / "doc/tools"
-      val manOut = (resourceManaged in Compile).value / "genman"
-      val fixedManOut = (resourceManaged in Compile).value / "man"
+      val htmlOut = (Compile / resourceManaged).value / "doc/tools"
+      val manOut = (Compile / resourceManaged).value / "genman"
+      val fixedManOut = (Compile / resourceManaged).value / "man"
       IO.createDirectory(htmlOut)
       IO.createDirectory(manOut / "man1")
       runner.value.run("scala.tools.docutil.ManMaker",
-        (fullClasspath in Compile in manual).value.files,
+        (manual / Compile / fullClasspath).value.files,
         Seq(command, htmlOut.getAbsolutePath, manOut.getAbsolutePath),
         streams.value.log).failed foreach (sys error _.getMessage)
       (manOut ** "*.1" pair Path.rebase(manOut, fixedManOut)).foreach { case (in, out) =>
@@ -1315,7 +916,7 @@ lazy val scalaDist = Project("scala-dist", file(".") / "target" / "scala-dist-di
       }
       (htmlOut ** "*.html").get ++ (fixedManOut ** "*.1").get
     }.taskValue,
-    managedResourceDirectories in Compile := Seq((resourceManaged in Compile).value),
+    Compile / managedResourceDirectories := Seq((Compile / resourceManaged).value),
     libraryDependencies ++= jlineDeps,
     apiURL := None,
     fixPom(
@@ -1323,12 +924,12 @@ lazy val scalaDist = Project("scala-dist", file(".") / "target" / "scala-dist-di
       "/project/description" -> <description>The Artifacts Distributed with Scala</description>,
       "/project/packaging" -> <packaging>jar</packaging>
     ),
-    publishArtifact in (Compile, packageSrc) := false
+    Compile / packageSrc / publishArtifact := false
   )
   .dependsOn(library, reflect, compiler, scalap)
 
 def partestOnly(in: String): Def.Initialize[Task[Unit]] =
-  (testOnly in IntegrationTest in testP).toTask(" -- --terse " + in)
+  (testP / IntegrationTest / testOnly).toTask(" -- --terse " + in)
 
 def partestDesc(in: String): Def.Initialize[Task[(Result[Unit], String)]] =
   partestOnly(in).result map (_ -> s"partest $in")
@@ -1340,7 +941,7 @@ lazy val root: Project = (project in file("."))
   .settings(
     commands ++= ScriptCommands.all,
     extractBuildCharacterPropertiesFile := {
-      val jar = (scalaInstance in bootstrap).value.allJars.find(_.getName contains "-compiler").get
+      val jar = (bootstrap / scalaInstance).value.allJars.find(_.getName contains "-compiler").get
       val bc = buildCharacterPropertiesFile.value
       val packagedName = "scala-buildcharacter.properties"
       IO.withTemporaryDirectory { tmp =>
@@ -1374,8 +975,7 @@ lazy val root: Project = (project in file("."))
     testJarSize := TestJarSize.testJarSizeImpl.value,
 
     // Wasn't sure if findRootCauses would work if I just aggregated testAll1/etc, so a little duplication..
-    testAll  := runTests(unitTests ::: partests ::: osgiTests ::: remainingTests).value,
-    testOsgi := runTests(osgiTests).value,
+    testAll  := runTests(unitTests ::: partests ::: remainingTests).value,
     // splitting this in two parts allows them to run in parallel on CI.
     // partest takes the longest, so "partest vs. everything else" is a roughly equal split
     testAll1 := runTests(unitTests ::: remainingTests).value,
@@ -1409,15 +1009,10 @@ lazy val partests = List(
   (tasty / Test / Keys.test).result.map(_ -> "tasty/test"),
 )
 
-// failed in CI? :( https://travis-ci.com/github/dwijnand/scala/jobs/403646205
-lazy val osgiTests = List(
+lazy val remainingTests = List(
   (osgiTestFelix   / Test / Keys.test).result.map(_ -> "osgiTestFelix/test"),
   (osgiTestEclipse / Test / Keys.test).result.map(_ -> "osgiTestEclipse/test"),
-)
-
-lazy val remainingTests = List(
-  (library / mimaReportBinaryIssues      ).result.map(_ -> "library/mimaReportBinaryIssues"),
-  (reflect / mimaReportBinaryIssues      ).result.map(_ -> "reflect/mimaReportBinaryIssues"),
+  (mimaReportBinaryIssues                ).result.map(_ -> "mimaReportBinaryIssues"),
   (testJDeps                             ).result.map(_ -> "testJDeps"),
   (testJarSize                           ).result.map(_ -> "testJarSize"),
   (bench / Compile / compile).map(_ => ()).result.map(_ -> "bench/compile"),
@@ -1536,7 +1131,6 @@ lazy val mkBin = taskKey[Seq[File]]("Generate shell script (bash or Windows batc
 lazy val mkQuick = taskKey[File]("Generate a full build, including scripts, in build/quick")
 lazy val mkPack = taskKey[File]("Generate a full build, including scripts, in build/pack")
 lazy val testAll = taskKey[Unit]("Run all test tasks sequentially")
-lazy val testOsgi = taskKey[Unit]("Run OSGI test tasks sequentially")
 lazy val testAll1 = taskKey[Unit]("Run 1/2 test tasks sequentially")
 lazy val testAll2 = taskKey[Unit]("Run 2/2 test tasks sequentially")
 
@@ -1795,6 +1389,8 @@ def findJar(files: Seq[Attributed[File]], dep: ModuleID): Option[Attributed[File
 whitesourceProduct               := "Lightbend Reactive Platform"
 whitesourceAggregateProjectName  := "scala-2.13-stable"
 whitesourceIgnoredScopes         := Vector("test", "scala-tool")
+// for some reason sbt 1.4 issues an unused-setting warning for this, I don't understand why
+Global / excludeLintKeys += whitesourceIgnoredScopes
 
 {
   scala.build.TravisOutput.installIfOnTravis()
