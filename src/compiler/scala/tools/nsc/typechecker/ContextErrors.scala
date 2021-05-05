@@ -16,6 +16,7 @@ package typechecker
 import scala.reflect.internal.util.StringOps.{countAsString, countElementsAsString}
 import java.lang.System.{lineSeparator => EOL}
 
+import scala.PartialFunction.cond
 import scala.annotation.tailrec
 import scala.reflect.runtime.ReflectionUtils
 import scala.reflect.macros.runtime.AbortMacroException
@@ -24,7 +25,7 @@ import scala.tools.nsc.util.stackTraceString
 import scala.reflect.io.NoAbstractFile
 import scala.reflect.internal.util.NoSourceFile
 
-trait ContextErrors {
+trait ContextErrors extends splain.SplainErrors {
   self: Analyzer =>
 
   import global._
@@ -107,7 +108,7 @@ trait ContextErrors {
     def issueTypeError(err: AbsTypeError)(implicit context: Context): Unit = { context.issue(err) }
 
     def typeErrorMsg(context: Context, found: Type, req: Type) =
-      if (context.openImplicits.nonEmpty && !settings.XlogImplicits.value && currentRun.isScala213)
+      if (context.openImplicits.nonEmpty && !settings.Vimplicits)
          // OPT: avoid error string creation for errors that won't see the light of day, but predicate
         //       this on -Xsource:2.13 for bug compatibility with https://github.com/scala/scala/pull/7147#issuecomment-418233611
         "type mismatch"
@@ -151,8 +152,26 @@ trait ContextErrors {
   def MacroCantExpandIncompatibleMacrosError(internalMessage: String) =
     MacroIncompatibleEngineError("macro cannot be expanded, because it was compiled by an incompatible macro engine", internalMessage)
 
+  /** The implicit not found message from the annotation, and whether it's a supplement message or not. */
+  def NoImplicitFoundAnnotation(tree: Tree, param: Symbol): (Boolean, String) = {
+    param match {
+      case ImplicitNotFoundMsg(msg) => (false, msg.formatParameterMessage(tree))
+      case _ =>
+        val paramTp = param.tpe
+        paramTp.typeSymbolDirect match {
+          case ImplicitNotFoundMsg(msg) => (false, msg.formatDefSiteMessage(paramTp))
+          case _ =>
+            val supplement = param.baseClasses.collectFirst {
+              case ImplicitNotFoundMsg(msg) => s" (${msg.formatDefSiteMessage(paramTp)})"
+            }.getOrElse("")
+            true -> supplement
+        }
+    }
+  }
+
   def NoImplicitFoundError(tree: Tree, param: Symbol)(implicit context: Context): Unit = {
-    def errMsg = {
+    val (isSupplement, annotationMsg) = NoImplicitFoundAnnotation(tree, param)
+    def defaultErrMsg = {
       val paramName = param.name
       val paramTp = param.tpe
       def evOrParam =
@@ -160,21 +179,11 @@ trait ContextErrors {
           "evidence parameter of type"
         else
           s"parameter $paramName:"
-
-      param match {
-        case ImplicitNotFoundMsg(msg) => msg.formatParameterMessage(tree)
-        case _ =>
-          paramTp.typeSymbolDirect match {
-            case ImplicitNotFoundMsg(msg) => msg.formatDefSiteMessage(paramTp)
-            case _ =>
-              val supplement = param.baseClasses.collectFirst {
-                case ImplicitNotFoundMsg(msg) => s" (${msg.formatDefSiteMessage(paramTp)})"
-              }.getOrElse("")
-              s"could not find implicit value for $evOrParam $paramTp$supplement"
-          }
-      }
+      if (isSupplement) s"could not find implicit value for $evOrParam $paramTp$annotationMsg"
+      else annotationMsg
     }
-    issueNormalTypeError(tree, errMsg)
+    val errMsg = splainPushOrReportNotFound(tree, param, annotationMsg)
+    issueNormalTypeError(tree, if (errMsg.isEmpty) defaultErrMsg else errMsg)
   }
 
   trait TyperContextErrors {
@@ -578,7 +587,7 @@ trait ContextErrors {
         NormalTypeError(tree, "expected annotation of type " + expected + ", found " + found)
 
       def MultipleArgumentListForAnnotationError(tree: Tree) =
-        NormalTypeError(tree, "multiple argument lists on Java annotation or subclass of ConstantAnnotation")
+        NormalTypeError(tree, "multiple argument lists on Java annotation")
 
       def UnknownAnnotationNameError(tree: Tree, name: Name) =
         NormalTypeError(tree, "unknown annotation argument name: " + name)
@@ -587,7 +596,7 @@ trait ContextErrors {
         NormalTypeError(tree, "duplicate value for annotation argument " + name)
 
       def ClassfileAnnotationsAsNamedArgsError(tree: Tree) =
-        NormalTypeError(tree, "arguments to Java annotations or subclasses of ConstantAnnotation have to be supplied as named arguments")
+        NormalTypeError(tree, "arguments to Java annotations have to be supplied as named arguments")
 
       def AnnotationMissingArgError(tree: Tree, annType: Type, sym: Symbol) =
         NormalTypeError(tree, "annotation " + annType.typeSymbol.fullName + " is missing argument " + sym.name)
@@ -1166,9 +1175,15 @@ trait ContextErrors {
         val proscription =
           if (tree.symbol.isConstructor) " cannot be invoked with "
           else " cannot be applied to "
+        val junkNames = {
+          val bads = argtpes.collect {
+            case NamedType(name, _) if !alts.exists(cond(_) { case MethodType(params, _) => params.exists(_.name == name) }) => name.decoded
+          }
+          if (bads.isEmpty) "" else bads.mkString(" [which have no such parameter ", ",", "]")
+        }
 
         issueNormalTypeError(tree,
-          applyErrorMsg(tree, proscription, widenedArgtpes, pt))
+          applyErrorMsg(tree, junkNames + proscription, widenedArgtpes, pt))
         // since inferMethodAlternative modifies the state of the tree
         // we have to set the type of tree to ErrorType only in the very last
         // fallback action that is done in the inference.
@@ -1345,9 +1360,6 @@ trait ContextErrors {
 
       def ParentSealedInheritanceError(parent: Tree, psym: Symbol) =
         NormalTypeError(parent, "illegal inheritance from sealed " + psym )
-
-      def RootImportError(tree: Tree) =
-        issueNormalTypeError(tree, "_root_ cannot be imported")
 
       def SymbolValidationError(sym: Symbol, errKind: SymValidateErrors.Value): Unit = {
         val msg = errKind match {

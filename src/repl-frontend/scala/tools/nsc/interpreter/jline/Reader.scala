@@ -13,14 +13,19 @@
 package scala.tools.nsc.interpreter
 package jline
 
-import java.util.{List => JList}
-
-import org.jline.reader.{Candidate, Completer, CompletingParsedLine, EOFError, EndOfFileException, History, LineReader, ParsedLine, Parser, UserInterruptException}
+import org.jline.builtins.InputRC
+import org.jline.reader.Parser.ParseContext
+import org.jline.reader._
 import org.jline.reader.impl.{DefaultParser, LineReaderImpl}
 import org.jline.terminal.Terminal
 
-import shell.{Accumulator, ShellConfig}
-import Parser.ParseContext
+import java.io.{ByteArrayInputStream, File}
+import java.net.{MalformedURLException, URL}
+import java.util.{List => JList}
+import scala.io.Source
+import scala.tools.nsc.interpreter.shell.{Accumulator, ShellConfig}
+import scala.util.Using
+import scala.util.control.NonFatal
 
 /** A Reader that delegates to JLine3.
  */
@@ -65,10 +70,35 @@ object Reader {
       completion: shell.Completion,
       accumulator: Accumulator): Reader = {
     require(repl != null)
-    if (config.isReplDebug) initLogging()
+    if (config.isReplDebug) initLogging(trace = config.isReplTrace)
 
     System.setProperty(LineReader.PROP_SUPPORT_PARSEDLINE, java.lang.Boolean.TRUE.toString())
 
+    def inputrcFileUrl(): Option[URL] = {
+      sys.props
+         .get("jline.inputrc")
+         .flatMap { path =>
+           try Some(new URL(path))
+           catch {
+             case _: MalformedURLException =>
+               Some(new File(path).toURI.toURL)
+           }
+         }.orElse {
+        sys.props.get("user.home").map { home =>
+          val f = new File(home).toPath.resolve(".inputrc").toFile
+          (if (f.isFile) f else new File("/etc/inputrc")).toURI.toURL
+        }
+      }
+    }
+
+    def urlByteArray(url: URL): Array[Byte] = {
+      Using.resource(Source.fromURL(url).bufferedReader()) {
+        bufferedReader =>
+          LazyList.continually(bufferedReader.read).takeWhile(_ != -1).map(_.toByte).toArray
+      }
+    }
+
+    lazy val inputrcFileContents: Option[Array[Byte]] = inputrcFileUrl().map(in => urlByteArray(in))
     val jlineTerminal = TerminalBuilder.builder().jna(true).build()
     val completer = new Completion(completion)
     val parser    = new ReplParser(repl)
@@ -95,6 +125,9 @@ object Reader {
     }
 
     val reader = builder.build()
+    try inputrcFileContents.foreach(f => InputRC.configure(reader, new ByteArrayInputStream(f))) catch {
+      case NonFatal(_) =>
+    } //ignore
     locally {
       import LineReader._
       // VIINS, VICMD, EMACS
@@ -109,7 +142,8 @@ object Reader {
       }
     }
     def backupHistory(): Unit = {
-      import java.nio.file.{Files, Paths, StandardCopyOption}, StandardCopyOption.REPLACE_EXISTING
+      import java.nio.file.{Files, Paths, StandardCopyOption}
+      import StandardCopyOption.REPLACE_EXISTING
       val hf = Paths.get(config.historyFile)
       val bk = Paths.get(config.historyFile + ".bk")
       Files.move(/*source =*/ hf, /*target =*/ bk, REPLACE_EXISTING)
@@ -144,8 +178,11 @@ object Reader {
       import ParseContext._
       context match {
         case ACCEPT_LINE =>
-          if (repl.parseString(line) == Incomplete) throw new EOFError(0, 0, "incomplete")
-          tokenize(line, cursor)     // Try a real "final" parse.
+          repl.parseString(line) match {
+            case Incomplete if line.endsWith("\n\n") => throw new SyntaxError(0, 0, "incomplete") // incomplete but we're bailing now
+            case Incomplete                          => throw new EOFError(0, 0, "incomplete")    // incomplete so keep reading input
+            case Success | Error                     => tokenize(line, cursor) // Try a real "final" parse. (dnw: even for Error??)
+          }
         case COMPLETE => tokenize(line, cursor)    // Parse to find completions (typically after a Tab).
         case SECONDARY_PROMPT =>
           tokenize(line, cursor) // Called when we need to update the secondary prompts.
@@ -205,12 +242,13 @@ object Reader {
     }
   }
 
-  private def initLogging(): Unit = {
+  private def initLogging(trace: Boolean): Unit = {
     import java.util.logging._
-    val logger = Logger.getLogger("org.jline")
+    val logger  = Logger.getLogger("org.jline")
     val handler = new ConsoleHandler()
-    logger.setLevel(Level.ALL)
-    handler.setLevel(Level.ALL)
+    val level   = if (trace) Level.FINEST else Level.FINE
+    logger.setLevel(level)
+    handler.setLevel(level)
     logger.addHandler(handler)
   }
 }
@@ -225,8 +263,8 @@ class Completion(delegate: shell.Completion) extends shell.Completion with Compl
 
   // JLine Completer
   def complete(lineReader: LineReader, parsedLine: ParsedLine, newCandidates: JList[Candidate]): Unit = {
-    def candidateForResult(cc: CompletionCandidate): Candidate = {
-      val value = cc.defString
+    def candidateForResult(line: String, cc: CompletionCandidate): Candidate = {
+      val value = if (line.startsWith(":")) ":" + cc.defString else cc.defString
       val displayed = cc.defString + (cc.arity match {
         case CompletionCandidate.Nullary => ""
         case CompletionCandidate.Nilary => "()"
@@ -259,7 +297,7 @@ class Completion(delegate: shell.Completion) extends shell.Completion with Compl
       // normal completion
       case _ =>
         for (cc <- result.candidates)
-          newCandidates.add(candidateForResult(cc))
+          newCandidates.add(candidateForResult(result.line, cc))
     }
   }
 }

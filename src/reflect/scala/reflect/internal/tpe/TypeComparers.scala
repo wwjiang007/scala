@@ -18,7 +18,6 @@ package tpe
 import scala.collection.mutable
 import util.TriState
 import scala.annotation.tailrec
-import scala.reflect.internal.util.StatisticsStatics
 
 trait TypeComparers {
   self: SymbolTable =>
@@ -66,7 +65,7 @@ trait TypeComparers {
 
   private def isSubPre(pre1: Type, pre2: Type, sym: Symbol) =
     if ((pre1 ne pre2) && (pre1 ne NoPrefix) && (pre2 ne NoPrefix) && pre1 <:< pre2) {
-      if (settings.debug) println(s"new isSubPre $sym: $pre1 <:< $pre2")
+      if (settings.isDebug) println(s"new isSubPre $sym: $pre1 <:< $pre2")
       true
     } else
       false
@@ -104,7 +103,7 @@ trait TypeComparers {
 
   /** Do `tp1` and `tp2` denote equivalent types? */
   def isSameType(tp1: Type, tp2: Type): Boolean = try {
-    if (StatisticsStatics.areSomeColdStatsEnabled) statistics.incCounter(sametypeCount)
+    if (settings.areStatisticsEnabled) statistics.incCounter(sametypeCount)
     subsametypeRecursions += 1
     //OPT cutdown on Function0 allocation
     //was:
@@ -404,7 +403,7 @@ trait TypeComparers {
     }
 
     def isSub(tp1: Type, tp2: Type) =
-      settings.isScala213 && isSubHKTypeVar(tp1, tp2) ||
+      isSubHKTypeVar(tp1, tp2) ||
         isSub2(tp1.normalize, tp2.normalize)  // @M! normalize reduces higher-kinded typeref to PolyType
 
     def isSub2(ntp1: Type, ntp2: Type) = (ntp1, ntp2) match {

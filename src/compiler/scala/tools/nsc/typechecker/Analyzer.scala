@@ -13,8 +13,6 @@
 package scala.tools.nsc
 package typechecker
 
-import scala.reflect.internal.util.StatisticsStatics
-
 /** Defines the sub-components for the namer, packageobjects, and typer phases.
  */
 trait Analyzer extends AnyRef
@@ -47,9 +45,7 @@ trait Analyzer extends AnyRef
       override val checkable = false
       override def keepsTypeParams = false
 
-      def apply(unit: CompilationUnit): Unit = {
-        newNamer(rootContext(unit)).enterSym(unit.body)
-      }
+      def apply(unit: CompilationUnit): Unit = newNamer(rootContext(unit)).enterSym(unit.body)
     }
   }
 
@@ -98,7 +94,7 @@ trait Analyzer extends AnyRef
       // compiler run). This is good enough for the resident compiler, which was the most affected.
       undoLog.clear()
       override def run(): Unit = {
-        val start = if (StatisticsStatics.areSomeColdStatsEnabled) statistics.startTimer(statistics.typerNanos) else null
+        val start = if (settings.areStatisticsEnabled) statistics.startTimer(statistics.typerNanos) else null
         global.echoPhaseSummary(this)
         val units = currentRun.units
         while (units.hasNext) {
@@ -108,13 +104,13 @@ trait Analyzer extends AnyRef
         finishComputeParamAlias()
         // defensive measure in case the bookkeeping in deferred macro expansion is buggy
         clearDelayed()
-        if (StatisticsStatics.areSomeColdStatsEnabled) statistics.stopTimer(statistics.typerNanos, start)
-        runReporting.reportSuspendedMessages()
+        if (settings.areStatisticsEnabled) statistics.stopTimer(statistics.typerNanos, start)
       }
       def apply(unit: CompilationUnit): Unit = {
         try {
           val typer = newTyper(rootContext(unit))
           unit.body = typer.typed(unit.body)
+          // interactive typed may finish by throwing a `TyperResult`
           if (!settings.Youtline) {
             for (workItem <- unit.toCheck) workItem()
             if (settings.warnUnusedImport)
@@ -124,6 +120,7 @@ trait Analyzer extends AnyRef
           }
         }
         finally {
+          runReporting.reportSuspendedMessages(unit)
           unit.toCheck.clear()
         }
       }

@@ -91,9 +91,9 @@ abstract class BTypesFromSymbols[G <: Global](val global: G) extends BTypes {
 
     assert(classSym != NoSymbol, "Cannot create ClassBType from NoSymbol")
     assert(classSym.isClass, s"Cannot create ClassBType from non-class symbol $classSym")
-    if (global.settings.debug) {
-      // OPT these assertions have too much performance overhead to run unconditionally
-      assertClassNotArrayNotPrimitive(classSym)
+    // note: classSym can be scala.Array, see https://github.com/scala/bug/issues/12225#issuecomment-729687859
+    if (global.settings.isDebug) {
+      // OPT this assertion has too much performance overhead to run unconditionally
       assert(!primitiveTypeToBType.contains(classSym) || isCompilingPrimitive, s"Cannot create ClassBType for primitive class symbol $classSym")
     }
 
@@ -219,11 +219,6 @@ abstract class BTypesFromSymbols[G <: Global](val global: G) extends BTypes {
   def assertClassNotArray(sym: Symbol): Unit = {
     assert(sym.isClass, sym)
     assert(sym != definitions.ArrayClass || isCompilingArray, sym)
-  }
-
-  def assertClassNotArrayNotPrimitive(sym: Symbol): Unit = {
-    assertClassNotArray(sym)
-    assert(!primitiveTypeToBType.contains(sym) || isCompilingPrimitive, sym)
   }
 
   def implementedInterfaces(classSym: Symbol): List[Symbol] = {
@@ -701,7 +696,7 @@ abstract class BTypesFromSymbols[G <: Global](val global: G) extends BTypes {
     // TODO: give nested objects the ACC_FINAL flag again, since we won't let them be overridden
     //
     // For fields, only eager val fields can receive ACC_FINAL. vars or lazy vals can't:
-    // Source: http://docs.oracle.com/javase/specs/jls/se7/html/jls-17.html#jls-17.5.3
+    // Source: https://docs.oracle.com/javase/specs/jls/se7/html/jls-17.html#jls-17.5.3
     // "Another problem is that the specification allows aggressive
     // optimization of final fields. Within a thread, it is permissible to
     // reorder reads of a final field with those modifications of a final

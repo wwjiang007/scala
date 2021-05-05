@@ -144,9 +144,8 @@ trait ContextOps { self: TastyUniverse =>
     final def globallyVisibleOwner: Symbol = owner.logicallyEnclosingMember
 
     final def ignoreAnnotations: Boolean = u.settings.YtastyNoAnnotations
-    final def verboseDebug: Boolean = u.settings.debug
 
-    def requiresLatentEntry(decl: Symbol): Boolean = decl.isScala3Macro
+    def requiresLatentEntry(decl: Symbol): Boolean = decl.isScala3Inline
     def neverEntered(decl: Symbol): Boolean = decl.isPureMixinCtor
 
     def canEnterOverload(decl: Symbol): Boolean = {
@@ -429,6 +428,9 @@ trait ContextOps { self: TastyUniverse =>
 
     final def markAsEnumSingleton(sym: Symbol): Unit =
       sym.updateAttachment(new u.DottyEnumSingleton(sym.name.toString))
+
+    final def markAsOpaqueType(sym: Symbol, alias: Type): Unit =
+      sym.updateAttachment(new u.DottyOpaqueTypeAlias(alias))
 
     final def onCompletionError[T](sym: Symbol): PartialFunction[Throwable, T] = {
       case err: u.TypeError =>

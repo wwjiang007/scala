@@ -282,7 +282,7 @@ class Global(var currentSettings: Settings, reporter0: Reporter)
 // ------------------ Debugging -------------------------------------
 
   @inline final def ifDebug(body: => Unit): Unit = {
-    if (settings.debug)
+    if (settings.isDebug)
       body
   }
 
@@ -313,7 +313,7 @@ class Global(var currentSettings: Settings, reporter0: Reporter)
   }
 
   @inline final override def debuglog(msg: => String): Unit = {
-    if (settings.debug)
+    if (settings.isDebug)
       log(msg)
   }
 
@@ -417,7 +417,7 @@ class Global(var currentSettings: Settings, reporter0: Reporter)
       if ((unit ne null) && unit.exists)
         lastSeenSourceFile = unit.source
 
-      if (settings.debug && (settings.verbose || currentRun.size < 5))
+      if (settings.isDebug && (settings.verbose || currentRun.size < 5))
         inform("[running phase " + name + " on " + unit + "]")
     }
 
@@ -713,7 +713,7 @@ class Global(var currentSettings: Settings, reporter0: Reporter)
   protected def computePhaseDescriptors: List[SubComponent] = {
     /* Allow phases to opt out of the phase assembly. */
     def cullPhases(phases: List[SubComponent]) = {
-      val enabled = if (settings.debug && settings.isInfo) phases else phases filter (_.enabled)
+      val enabled = if (settings.isDebug && settings.isInfo) phases else phases filter (_.enabled)
       def isEnabled(q: String) = enabled exists (_.phaseName == q)
       val (satisfied, unhappy) = enabled partition (_.requires forall isEnabled)
       unhappy foreach (u => globalError(s"Phase '${u.phaseName}' requires: ${u.requires filterNot isEnabled}"))
@@ -744,7 +744,7 @@ class Global(var currentSettings: Settings, reporter0: Reporter)
   }
 
   /** A description of the phases that will run in this configuration, or all if -Vdebug. */
-  def phaseDescriptions: String = phaseHelp("description", elliptically = !settings.debug, phasesDescMap)
+  def phaseDescriptions: String = phaseHelp("description", elliptically = !settings.isDebug, phasesDescMap)
 
   /** Summary of the per-phase values of nextFlags and newFlags, shown under -Vphases -Vdebug. */
   def phaseFlagDescriptions: String = {
@@ -755,7 +755,7 @@ class Global(var currentSettings: Settings, reporter0: Reporter)
       else if (ph.phaseNewFlags != 0L && ph.phaseNextFlags != 0L) fstr1 + " " + fstr2
       else fstr1 + fstr2
     }
-    phaseHelp("new flags", elliptically = !settings.debug, fmt)
+    phaseHelp("new flags", elliptically = !settings.isDebug, fmt)
   }
 
   /** Emit a verbose phase table.
@@ -1016,10 +1016,19 @@ class Global(var currentSettings: Settings, reporter0: Reporter)
     && rootMirror.isMirrorInitialized
   )
   override def isPastTyper = isPast(currentRun.typerPhase)
+  def isBeforeErasure      = isBefore(currentRun.erasurePhase)
   def isPast(phase: Phase) = (
        (curRun ne null)
     && isGlobalInitialized // defense against init order issues
     && (globalPhase.id > phase.id)
+  )
+  def isBefore(phase: Phase) = (
+       (curRun ne null)
+    && isGlobalInitialized // defense against init order issues
+    && (phase match {
+      case NoPhase => true // if phase is NoPhase then that phase ain't comin', so we're "before it"
+      case _       => globalPhase.id < phase.id
+    })
   )
 
   // TODO - trim these to the absolute minimum.
@@ -1104,7 +1113,7 @@ class Global(var currentSettings: Settings, reporter0: Reporter)
 
   def echoPhaseSummary(ph: Phase) = {
     /* Only output a summary message under debug if we aren't echoing each file. */
-    if (settings.debug && !(settings.verbose || currentRun.size < 5))
+    if (settings.isDebug && !(settings.verbose || currentRun.size < 5))
       inform("[running phase " + ph.name + " on " + currentRun.size +  " compilation units]")
   }
 
@@ -1145,9 +1154,7 @@ class Global(var currentSettings: Settings, reporter0: Reporter)
     keepPhaseStack = settings.log.isSetByUser
 
     // We hit these checks regularly. They shouldn't change inside the same run, so cache the comparisons here.
-    val isScala212: Boolean = settings.isScala212
-    val isScala213: Boolean = settings.isScala213
-    val isScala3: Boolean   = settings.isScala3
+    val isScala3 = settings.isScala3
 
     // used in sbt
     def uncheckedWarnings: List[(Position, String)]   = reporting.uncheckedWarnings
@@ -1274,11 +1281,8 @@ class Global(var currentSettings: Settings, reporter0: Reporter)
       checkPhaseSettings(including = true, inclusions.toSeq: _*)
       checkPhaseSettings(including = false, exclusions map (_.value): _*)
 
-      // Enable or disable depending on the current setting -- useful for interactive behaviour
-      statistics.initFromSettings(settings)
-
       // Report the overhead of statistics measurements per every run
-      if (statistics.areStatisticsLocallyEnabled)
+      if (settings.areStatisticsEnabled)
         statistics.reportStatisticsOverhead(reporter)
 
       phase = first   //parserPhase
@@ -1503,7 +1507,7 @@ class Global(var currentSettings: Settings, reporter0: Reporter)
       warnDeprecatedAndConflictingSettings()
       globalPhase = fromPhase
 
-      val timePhases = statistics.areStatisticsLocallyEnabled
+      val timePhases = settings.areStatisticsEnabled
       val startTotal = if (timePhases) statistics.startTimer(totalCompileTime) else null
 
       while (globalPhase.hasNext && !reporter.hasErrors) {

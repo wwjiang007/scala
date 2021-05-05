@@ -58,8 +58,6 @@ abstract class UnPickler {
   class Scan(_bytes: Array[Byte], offset: Int, classRoot: ClassSymbol, moduleRoot: ModuleSymbol, filename: String) extends PickleBuffer(_bytes, offset, -1) {
     //println("unpickle " + classRoot + " and " + moduleRoot)//debug
 
-    protected def debug = settings.debug.value
-
     checkVersion()
 
     private[this] val loadingMirror = mirrorThatLoaded(classRoot)
@@ -232,7 +230,7 @@ abstract class UnPickler {
 
           (module map { case (group, art) =>
             s"""\n(NOTE: It looks like the $art module is missing; try adding a dependency on "$group" : "$art".
-               |       See http://docs.scala-lang.org/overviews/ for more information.)""".stripMargin
+               |       See https://docs.scala-lang.org/overviews/ for more information.)""".stripMargin
            } getOrElse "")
         }
 

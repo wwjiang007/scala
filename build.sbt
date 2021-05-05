@@ -3,7 +3,7 @@
  *
  * What you see below is very much work-in-progress. The following features are implemented:
  *   - Compiling all classes for the compiler and library ("compile" in the respective subprojects)
- *   - Running JUnit ("junit/test"), ScalaCheck ("scalacheck/test"), and partest ("test/it:test") tests
+ *   - Running JUnit ("junit/test"), ScalaCheck ("scalacheck/test"), and partest ("test/IntegrationTest/test") tests
  *   - Creating build/quick with all compiled classes and launcher scripts ("dist/mkQuick")
  *   - Creating build/pack with all JARs and launcher scripts ("dist/mkPack")
  *   - Building all scaladoc sets ("doc")
@@ -35,9 +35,9 @@
 import scala.build._, VersionUtil._
 
 // Non-Scala dependencies:
-val junitDep          = "junit"                          % "junit"                            % "4.13.1"
-val junitInterfaceDep = "com.novocode"                   % "junit-interface"                  % "0.11"                            % "test"
-val scalacheckDep     = "org.scalacheck"                %% "scalacheck"                       % "1.15.1"                          % "test"
+val junitDep          = "junit"                          % "junit"                            % "4.13.2"
+val junitInterfaceDep = "com.novocode"                   % "junit-interface"                  % "0.11"                            % Test
+val scalacheckDep     = "org.scalacheck"                %% "scalacheck"                       % "1.15.4"                          % Test
 val jolDep            = "org.openjdk.jol"                % "jol-core"                         % "0.13"
 val asmDep            = "org.scala-lang.modules"         % "scala-asm"                        % versionProps("scala-asm.version")
 val jlineDep          = "org.jline"                      % "jline"                            % versionProps("jline.version")
@@ -70,7 +70,7 @@ lazy val publishSettings : Seq[Setting[_]] = Seq(
 // should not be set directly. It is the same as the Maven version and derived automatically from `baseVersion` and
 // `baseVersionSuffix`.
 globalVersionSettings
-Global / baseVersion       := "2.13.5"
+Global / baseVersion       := "2.13.6"
 Global / baseVersionSuffix := "SNAPSHOT"
 ThisBuild / organization   := "org.scala-lang"
 ThisBuild / homepage       := Some(url("https://www.scala-lang.org"))
@@ -112,7 +112,7 @@ lazy val instanceSettings = Seq[Setting[_]](
     // We create a managed copy to prevent sbt from putting it on the classpath where we don't want it
     if(s.isManagedVersion) s else {
       import sbt.internal.inc.ScalaInstance
-      val s2 = new ScalaInstance(s.version, s.loader, s.loaderLibraryOnly, s.libraryJars, s.compilerJar, s.allJars, Some(s.actualVersion))
+      val s2 = new ScalaInstance(s.version, s.loader, s.loaderCompilerOnly, s.loaderLibraryOnly, s.libraryJars, s.compilerJars, s.allJars, Some(s.actualVersion))
       assert(s2.isManagedVersion)
       s2
     }
@@ -141,7 +141,7 @@ lazy val commonSettings = instanceSettings ++ clearSourceAndResourceDirectories 
   Global / excludeLintKeys ++= Set(scalaSource),
   // each subproject has to ask specifically for files they want to include
   Compile / unmanagedResources / includeFilter := NothingFilter,
-  target := (ThisBuild / baseDirectory).value / "target" / thisProject.value.id,
+  target := (ThisBuild / target).value / thisProject.value.id,
   Compile / classDirectory := buildDirectory.value / "quick/classes" / thisProject.value.id,
   Compile / doc / target := buildDirectory.value / "scaladoc" / thisProject.value.id,
   // given that classDirectory and doc target are overridden to be _outside_ of target directory, we have
@@ -157,6 +157,7 @@ lazy val commonSettings = instanceSettings ++ clearSourceAndResourceDirectories 
   // we don't want optimizer warnings to interfere with `-Werror`. we have hundreds of such warnings
   // when the optimizer is enabled (as it is in CI and release builds, though not in local development)
   Compile / scalacOptions += "-Wconf:cat=optimizer:is",
+  Compile / scalacOptions ++= Seq("-deprecation", "-feature"),
   Compile / doc / scalacOptions ++= Seq(
     "-doc-footer", "epfl",
     "-diagrams",
@@ -446,7 +447,7 @@ lazy val compiler = configureAsSubproject(project)
         (LocalProject("interactive")   / Compile / packageBin / products).value ++
         (LocalProject("scaladoc")      / Compile / packageBin / products).value ++
         (LocalProject("repl")          / Compile / packageBin / products).value ++
-        (LocalProject("repl-frontend") / Compile / packageBin / products).value,
+        (LocalProject("replFrontend")  / Compile / packageBin / products).value,
     Compile / unmanagedResources / includeFilter :=
       "*.tmpl" | "*.xml" | "*.js" | "*.css" | "*.html" | "*.properties" | "*.swf" |
       "*.png" | "*.gif" | "*.gif" | "*.txt",
@@ -456,7 +457,7 @@ lazy val compiler = configureAsSubproject(project)
         (LocalProject("interactive")   / Compile / unmanagedResourceDirectories).value ++
         (LocalProject("scaladoc")      / Compile / unmanagedResourceDirectories).value ++
         (LocalProject("repl")          / Compile / unmanagedResourceDirectories).value ++
-        (LocalProject("repl-frontend") / Compile / unmanagedResourceDirectories).value
+        (LocalProject("replFrontend")  / Compile / unmanagedResourceDirectories).value
       base ** ((Compile / unmanagedResources / includeFilter).value || "*.scala" || "*.psd" || "*.ai" || "*.java") pair Path.relativeTo(base)
     },
     // Include the additional projects in the scaladoc JAR:
@@ -465,7 +466,7 @@ lazy val compiler = configureAsSubproject(project)
         (LocalProject("interactive")   / Compile / unmanagedSourceDirectories).value ++
         (LocalProject("scaladoc")      / Compile / unmanagedSourceDirectories).value ++
         (LocalProject("repl")          / Compile / unmanagedSourceDirectories).value ++
-        (LocalProject("repl-frontend") / Compile / unmanagedSourceDirectories).value
+        (LocalProject("replFrontend")  / Compile / unmanagedSourceDirectories).value
       ((base ** ("*.scala" || "*.java"))
         --- (base ** "Scaladoc*ModelTest.scala") // exclude test classes that depend on partest
       ).get
@@ -487,6 +488,7 @@ lazy val compiler = configureAsSubproject(project)
                             |org.jline.terminal.impl.jna.*;resolution:=optional
                             |org.jline.terminal.spi;resolution:=optional
                             |org.jline.utils;resolution:=optional
+                            |org.jline.builtins;resolution:=optional
                             |scala.*;version="$${range;[==,=+);$${ver}}"
                             |*""".stripMargin.linesIterator.mkString(","),
       "Class-Path" -> "scala-reflect.jar scala-library.jar"
@@ -523,7 +525,7 @@ lazy val repl = configureAsSubproject(project)
   .settings(Compile / scalacOptions ++= Seq("-Xlint", "-Wconf:cat=deprecation&msg=early initializers:s"))
   .dependsOn(compiler, interactive)
 
-lazy val replFrontend = configureAsSubproject(Project("repl-frontend", file(".") / "src" / "repl-frontend"))
+lazy val replFrontend = configureAsSubproject(project, srcdir = Some("repl-frontend"))
   .settings(disableDocs)
   .settings(fatalWarningsSettings)
   .settings(publish / skip := true)
@@ -533,7 +535,7 @@ lazy val replFrontend = configureAsSubproject(Project("repl-frontend", file(".")
     Compile / scalacOptions ++= Seq("-Xlint"),
   )
   .settings(
-    run := (Compile / run).partialInput(" -usejavacp").evaluated, // so `repl-frontend/run` works
+    run := (Compile / run).partialInput(" -usejavacp").evaluated, // so `replFrontend/run` works
     Compile / run / javaOptions += s"-Dscala.color=${!scala.util.Properties.isWin}",
   )
   .dependsOn(repl)
@@ -596,6 +598,8 @@ lazy val partest = configureAsSubproject(project)
     name := "scala-partest",
     description := "Scala Compiler Testing Tool",
     libraryDependencies ++= List(testInterfaceDep, diffUtilsDep, junitDep),
+    Compile / javacOptions ++= Seq("-XDenableSunApiLintControl", "-Xlint") ++
+      (if (fatalWarnings.value) Seq("-Werror") else Seq()),
     Compile / scalacOptions ++= Seq("-feature", "-Xlint"),
     pomDependencyExclusions ++= List((organization.value, "scala-repl-frontend"), (organization.value, "scala-compiler-doc")),
     fixPom(
@@ -661,12 +665,13 @@ lazy val bench = project.in(file("test") / "benchmarks")
     name := "test-benchmarks",
     autoScalaLibrary := false,
     crossPaths := true, // needed to enable per-scala-version source directories (https://github.com/sbt/sbt/pull/1799)
+    compileOrder := CompileOrder.JavaThenScala, // to allow inlining from Java ("... is defined in a Java source (mixed compilation), no bytecode is available")
     libraryDependencies += "org.openjdk.jol" % "jol-core" % "0.10",
     libraryDependencies ++= {
       if (benchmarkScalaVersion == "") Nil
       else "org.scala-lang" % "scala-compiler" % benchmarkScalaVersion :: Nil
     },
-    scalacOptions ++= Seq("-feature", "-opt:l:inline", "-opt-inline-from:scala.**")
+    scalacOptions ++= Seq("-feature", "-opt:l:inline", "-opt-inline-from:scala/**", "-opt-warnings"),
   ).settings(inConfig(JmhPlugin.JmhKeys.Jmh)(scalabuild.JitWatchFilePlugin.jitwatchSettings))
 
 
@@ -688,6 +693,12 @@ lazy val testkit = configureAsSubproject(project)
     )
   )
 
+// Jigsaw: reflective access between modules (`setAccessible(true)`) requires an `opens` directive.
+// This is enforced by error (not just by warning) since JDK 16. In our tests we use reflective access
+// from the unnamed package (the classpath) to JDK modules in testing utilities like `assertNotReachable`.
+// `add-exports=jdk.jdeps/com.sun.tools.javap` is tests that use `:javap` in the REPL, see scala/bug#12378
+val addOpensForTesting = "-XX:+IgnoreUnrecognizedVMOptions" +: "--add-exports=jdk.jdeps/com.sun.tools.javap=ALL-UNNAMED" +:
+  Seq("java.util.concurrent.atomic", "java.lang", "java.lang.reflect", "java.net").map(p => s"--add-opens=java.base/$p=ALL-UNNAMED")
 
 lazy val junit = project.in(file("test") / "junit")
   .dependsOn(testkit, compiler, replFrontend, scaladoc)
@@ -697,7 +708,7 @@ lazy val junit = project.in(file("test") / "junit")
   .settings(publish / skip := true)
   .settings(
     Test / fork := true,
-    Test / javaOptions += "-Xss1M",
+    Test / javaOptions ++= "-Xss1M" +: addOpensForTesting,
     (Test / forkOptions) := (Test / forkOptions).value.withWorkingDirectory((ThisBuild / baseDirectory).value),
     (Test / testOnly / forkOptions) := (Test / testOnly / forkOptions).value.withWorkingDirectory((ThisBuild / baseDirectory).value),
     Compile / scalacOptions ++= Seq(
@@ -708,7 +719,7 @@ lazy val junit = project.in(file("test") / "junit")
     ),
     Compile / javacOptions ++= Seq("-Xlint"),
     libraryDependencies ++= Seq(junitInterfaceDep, jolDep, diffUtilsDep),
-    testOptions += Tests.Argument(TestFrameworks.JUnit, "-a", "-v"),
+    testOptions += Tests.Argument(TestFrameworks.JUnit, "-a", "-v", "-s"),
     Compile / unmanagedSourceDirectories := Nil,
     Test / unmanagedSourceDirectories := List(baseDirectory.value)
   )
@@ -733,6 +744,7 @@ lazy val tasty = project.in(file("test") / "tasty")
 lazy val scalacheck = project.in(file("test") / "scalacheck")
   .dependsOn(library, reflect, compiler, scaladoc)
   .settings(commonSettings)
+  .settings(fatalWarningsSettings)
   .settings(disableDocs)
   .settings(publish / skip := true)
   .settings(
@@ -740,12 +752,12 @@ lazy val scalacheck = project.in(file("test") / "scalacheck")
     Test / fork := true,
     // Instead of forking above, it should be possible to set:
     // Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
-    Test / javaOptions += "-Xss1M",
+    Test / javaOptions ++= "-Xss1M" +: addOpensForTesting,
     Test / testOptions += Tests.Argument(
       // Full stack trace on failure:
       "-verbosity", "2"
     ),
-    libraryDependencies ++= Seq(scalacheckDep),
+    libraryDependencies ++= Seq(scalacheckDep, junitDep),
     Compile / unmanagedSourceDirectories := Nil,
     Test / unmanagedSourceDirectories := List(baseDirectory.value)
   )
@@ -779,13 +791,13 @@ def osgiTestProject(p: Project, framework: ModuleID) = p
         "ch.qos.logback" % "logback-core" % "1.1.3",
         "ch.qos.logback" % "logback-classic" % "1.1.3",
         "org.slf4j" % "slf4j-api" % "1.7.12",
-        framework % "test"
+        framework % Test
       )
     },
     Test / Keys.test := (Test / Keys.test).dependsOn(Compile / packageBin).value,
     Test / Keys.testOnly := (Test / Keys.testOnly).dependsOn(Compile / packageBin).evaluated,
     testOptions += Tests.Argument(TestFrameworks.JUnit, "-a", "-v", "-q"),
-    Test / javaOptions += "-Dscala.bundle.dir=" + (ThisBuild / buildDirectory).value / "osgi",
+    Test / javaOptions ++= ("-Dscala.bundle.dir=" + (ThisBuild / buildDirectory).value / "osgi") +: addOpensForTesting,
     Test / Keys.test / forkOptions := (Test / Keys.test / forkOptions).value.withWorkingDirectory((ThisBuild / baseDirectory).value),
     Test / unmanagedSourceDirectories := List((ThisBuild / baseDirectory).value / "test" / "osgi" / "src"),
     Compile / unmanagedResourceDirectories := (Test / unmanagedSourceDirectories).value,
@@ -801,8 +813,9 @@ def osgiTestProject(p: Project, framework: ModuleID) = p
     cleanFiles += (ThisBuild / buildDirectory).value / "osgi"
   )
 
-lazy val partestJavaAgent = Project("partest-javaagent", file(".") / "src" / "partest-javaagent")
+lazy val partestJavaAgent = Project("partestJavaAgent", file(".") / "src" / "partest-javaagent")
   .settings(commonSettings)
+  .settings(fatalWarningsSettings)
   .settings(generatePropertiesFileSettings)
   .settings(disableDocs)
   .settings(
@@ -836,10 +849,10 @@ lazy val test = project
     IntegrationTest / sources := Nil,
     IntegrationTest / fork := true,
     Compile / scalacOptions += "-Yvalidate-pos:parser,typer",
-    IntegrationTest / javaOptions ++= List("-Xmx2G", "-Dpartest.exec.in.process=true", "-Dfile.encoding=UTF-8", "-Duser.language=en", "-Duser.country=US"),
+    IntegrationTest / javaOptions ++= List("-Xmx2G", "-Dpartest.exec.in.process=true", "-Dfile.encoding=UTF-8", "-Duser.language=en", "-Duser.country=US") ++ addOpensForTesting,
     IntegrationTest / testOptions += Tests.Argument("-Dfile.encoding=UTF-8", "-Duser.language=en", "-Duser.country=US"),
     testFrameworks += new TestFramework("scala.tools.partest.sbt.Framework"),
-    IntegrationTest / testOptions += Tests.Argument("-Dpartest.java_opts=-Xmx1024M -Xms64M"),
+    IntegrationTest / testOptions += Tests.Argument(s"-Dpartest.java_opts=-Xmx1024M -Xms64M ${addOpensForTesting.mkString(" ")}"),
     IntegrationTest / testOptions += Tests.Argument("-Dpartest.scalac_opts=" + (Compile / scalacOptions).value.mkString(" ")),
     (IntegrationTest / forkOptions) := (IntegrationTest / forkOptions).value.withWorkingDirectory((ThisBuild / baseDirectory).value),
     IntegrationTest / testOptions += {
@@ -882,10 +895,11 @@ lazy val manual = configureAsSubproject(project)
     Compile / classDirectory := (Compile / target).value / "classes"
   )
 
-lazy val scalaDist = Project("scala-dist", file(".") / "target" / "scala-dist-dist-src-dummy")
+lazy val scalaDist = Project("scalaDist", file(".") / "target" / "scala-dist-dist-src-dummy")
   .settings(commonSettings)
   .settings(disableDocs)
   .settings(
+    name := "scala-dist",
     Compile / packageBin / mappings ++= {
       val binBaseDir = buildDirectory.value / "pack"
       val binMappings = (dist / mkBin).value.pair(Path.relativeTo(binBaseDir), errorIfNone = false)
@@ -1012,7 +1026,8 @@ lazy val partests = List(
 lazy val remainingTests = List(
   (osgiTestFelix   / Test / Keys.test).result.map(_ -> "osgiTestFelix/test"),
   (osgiTestEclipse / Test / Keys.test).result.map(_ -> "osgiTestEclipse/test"),
-  (mimaReportBinaryIssues                ).result.map(_ -> "mimaReportBinaryIssues"),
+  (library / mimaReportBinaryIssues      ).result.map(_ -> "library/mimaReportBinaryIssues"), // doesn't aggregate..
+  (reflect / mimaReportBinaryIssues      ).result.map(_ -> "reflect/mimaReportBinaryIssues"), // ..so specify both
   (testJDeps                             ).result.map(_ -> "testJDeps"),
   (testJarSize                           ).result.map(_ -> "testJarSize"),
   (bench / Compile / compile).map(_ => ()).result.map(_ -> "bench/compile"),
@@ -1087,7 +1102,7 @@ lazy val dist = (project in file("dist"))
       (ThisBuild / buildDirectory).value / "quick"
     }.dependsOn((distDependencies.map(_ / Runtime / products) :+ mkBin): _*).value,
     mkPack := Def.task { (ThisBuild / buildDirectory).value / "pack" }.dependsOn(Compile / packageBin / packagedArtifact, mkBin).value,
-    target := (ThisBuild / baseDirectory).value / "target" / thisProject.value.id,
+    target := (ThisBuild / target).value / thisProject.value.id,
     Compile / packageBin := {
       val targetDir = (ThisBuild / buildDirectory).value / "pack" / "lib"
       val jlineJAR = findJar((Compile / dependencyClasspath).value, jlineDep).get.data
@@ -1119,14 +1134,13 @@ lazy val dist = (project in file("dist"))
  * We pass `project` as an argument which is in fact a macro call. This macro determines
  * project.id based on the name of the lazy val on the left-hand side.
  */
-def configureAsSubproject(project: Project): Project = {
-  val base = file(".") / "src" / project.id
+def configureAsSubproject(project: Project, srcdir: Option[String] = None): Project = {
+  val base = file(".") / "src" / srcdir.getOrElse(project.id)
   (project in base)
     .settings(scalaSubprojectSettings)
     .settings(generatePropertiesFileSettings)
 }
 
-lazy val buildDirectory = settingKey[File]("The directory where all build products go. By default ./build")
 lazy val mkBin = taskKey[Seq[File]]("Generate shell script (bash or Windows batch).")
 lazy val mkQuick = taskKey[File]("Generate a full build, including scripts, in build/quick")
 lazy val mkPack = taskKey[File]("Generate a full build, including scripts, in build/pack")
@@ -1194,11 +1208,9 @@ def generateServiceProviderResources(services: (String, String)*): Setting[_] =
     }
   }.taskValue
 
-ThisBuild / buildDirectory := (ThisBuild / baseDirectory).value / "build"
-
 // Add tab completion to partest
 commands += Command("partest")(_ => PartestUtil.partestParser((ThisBuild / baseDirectory).value, (ThisBuild / baseDirectory).value / "test")) { (state, parsed) =>
-  ("test/it:testOnly -- " + parsed) :: state
+  ("test/IntegrationTest/testOnly -- " + parsed) :: state
 }
 
 // Watch the test files also so ~partest triggers on test case changes
@@ -1208,7 +1220,7 @@ watchSources ++= PartestUtil.testFilePaths((ThisBuild / baseDirectory).value, (T
 commands ++= {
   val commands =
   List(("scalac",   "compiler", "scala.tools.nsc.Main"),
-       ("scala",    "repl-frontend", "scala.tools.nsc.MainGenericRunner"),
+       ("scala",    "replFrontend", "scala.tools.nsc.MainGenericRunner"),
        ("scaladoc", "scaladoc", "scala.tools.nsc.ScalaDoc"))
 
   commands.map {

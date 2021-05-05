@@ -166,7 +166,17 @@ trait MacroAnnotationNamers { self: Analyzer =>
     protected def weakEnsureCompanionObject(cdef: ClassDef, creator: ClassDef => Tree = companionModuleDef(_)): Symbol = {
       val m = patchedCompanionSymbolOf(cdef.symbol, context)
       if (m != NoSymbol && currentRun.compiles(m)) m
-      else { val mdef = atPos(cdef.pos.focus)(creator(cdef)); enterSym(mdef); markWeak(mdef.symbol) }
+      else {
+        val existsVal = context.tree.children.find {
+          case ValDef(_, term, _, _) if cdef.getterName == term  => true
+          case _ => false
+        }
+        if (existsVal.isDefined) NoSymbol else {
+          val mdef = atPos(cdef.pos.focus)(creator(cdef))
+          enterSym(mdef)
+          markWeak(mdef.symbol)
+        }
+      }
     }
 
     protected def finishSymbol(tree: Tree): Unit = {
@@ -226,7 +236,7 @@ trait MacroAnnotationNamers { self: Analyzer =>
       savingLock {
         tree match {
           case tree @ PackageDef(_, _) =>
-            newNamer(context.make(tree, sym.moduleClass, sym.info.decls)) enterSyms tree.stats
+            newNamer(context.make(tree, sym.moduleClass, sym.info.decls)).enterSyms(tree.stats)
           case tree @ ClassDef(mods, name, tparams, impl) =>
             val primaryConstructorArity = treeInfo.firstConstructorArgs(impl.body).size
             // not entering
@@ -769,7 +779,7 @@ trait MacroAnnotationNamers { self: Analyzer =>
         case (_, unexpected) => unexpected // NOTE: who knows how people are already using macro annotations, so it's scary to fail here
       }
       if (phase.id > currentRun.typerPhase.id || !stats.exists(mightNeedTransform)) stats
-      else stats.flatMap(stat => {
+      else stats.flatMap { stat =>
         if (mightNeedTransform(stat)) {
           val sym = stat.symbol
           assert(sym != NoSymbol, (sym, stat))
@@ -785,7 +795,7 @@ trait MacroAnnotationNamers { self: Analyzer =>
         } else {
           List(stat)
         }
-      })
+      }
     }
   }
 }

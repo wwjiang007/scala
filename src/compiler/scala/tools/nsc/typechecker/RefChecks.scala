@@ -148,7 +148,7 @@ abstract class RefChecks extends Transform {
       }
 
       // This has become noisy with implicit classes.
-      if (settings.warnPolyImplicitOverload && settings.developer) {
+      if (settings.isDeveloper && settings.warnPolyImplicitOverload) {
         clazz.info.decls.foreach(sym => if (sym.isImplicit && sym.typeParams.nonEmpty) {
           // implicit classes leave both a module symbol and a method symbol as residue
           val alts = clazz.info.decl(sym.name).alternatives filterNot (_.isModule)
@@ -303,7 +303,7 @@ abstract class RefChecks extends Transform {
         def isNeitherInClass = memberClass != clazz && otherClass != clazz
 
         val indent = "  "
-        def overriddenWithAddendum(msg: String, foundReq: Boolean = settings.debug.value): String = {
+        def overriddenWithAddendum(msg: String, foundReq: Boolean = settings.isDebug): String = {
           val isConcreteOverAbstract =
             (otherClass isSubClass memberClass) && other.isDeferred && !member.isDeferred
           val addendum =
@@ -383,7 +383,7 @@ abstract class RefChecks extends Transform {
           def isOverrideAccessOK = member.isPublic || {      // member is public, definitely same or relaxed access
             (!other.isProtected || member.isProtected) &&    // if o is protected, so is m
             ((!isRootOrNone(ob) && ob.hasTransOwner(mb)) ||  // m relaxes o's access boundary
-             other.isJavaDefined)                           // overriding a protected java member, see #3946
+            (other.isJavaDefined && other.isProtected))      // overriding a protected java member, see #3946 #12349
           }
           if (!isOverrideAccessOK) {
             overrideAccessError()
@@ -1486,39 +1486,47 @@ abstract class RefChecks extends Transform {
           reporter.error(sym.pos, s"${sym.name}: Only concrete methods can be marked @elidable.$rest")
         }
       }
-      if (currentRun.isScala213) checkIsElidable(tree.symbol)
+      checkIsElidable(tree.symbol)
+
+      def checkMember(sym: Symbol): Unit = {
+        sym.setAnnotations(applyChecks(sym.annotations))
+
+        // validate implicitNotFoundMessage and implicitAmbiguousMessage
+        if (settings.lintImplicitNotFound) {
+          def messageWarning(name: String)(warn: String) =
+            refchecksWarning(tree.pos, s"Invalid $name message for ${sym}${sym.locationString}:\n$warn", WarningCategory.LintImplicitNotFound)
+          analyzer.ImplicitNotFoundMsg.check(sym) foreach messageWarning("implicitNotFound")
+          analyzer.ImplicitAmbiguousMsg.check(sym) foreach messageWarning("implicitAmbiguous")
+        }
+
+        if (settings.warnSerialization && sym.isClass && sym.hasAnnotation(SerialVersionUIDAttr)) {
+          def warn(what: String) =
+            refchecksWarning(tree.pos, s"@SerialVersionUID has no effect on $what", WarningCategory.LintSerial)
+
+          if (sym.isTrait) warn("traits")
+          else if (!sym.isSerializable) warn("non-serializable classes")
+        }
+        if (!sym.isMethod && !sym.isConstructor)
+          checkNoThrows(sym.annotations)
+      }
+      def checkNoThrows(anns: List[AnnotationInfo]): Unit =
+        if (anns.exists(_.symbol == ThrowsClass))
+          reporter.error(tree.pos, s"`@throws` only allowed for methods and constructors")
 
       tree match {
         case m: MemberDef =>
-          val sym = m.symbol
-          sym.setAnnotations(applyChecks(sym.annotations))
-
-          // validate implicitNotFoundMessage and implicitAmbiguousMessage
-          if (settings.lintImplicitNotFound) {
-            def messageWarning(name: String)(warn: String) =
-              refchecksWarning(tree.pos, s"Invalid $name message for ${sym}${sym.locationString}:\n$warn", WarningCategory.LintImplicitNotFound)
-            analyzer.ImplicitNotFoundMsg.check(sym) foreach messageWarning("implicitNotFound")
-            analyzer.ImplicitAmbiguousMsg.check(sym) foreach messageWarning("implicitAmbiguous")
-          }
-
-          if (settings.warnSerialization && sym.isClass && sym.hasAnnotation(SerialVersionUIDAttr)) {
-            def warn(what: String) =
-              refchecksWarning(tree.pos, s"@SerialVersionUID has no effect on $what", WarningCategory.LintSerial)
-
-            if (sym.isTrait) warn("traits")
-            else if (!sym.isSerializable) warn("non-serializable classes")
-          }
+          checkMember(m.symbol)
         case tpt@TypeTree() =>
-          if (tpt.original != null) {
-            tpt.original foreach {
+          if (tpt.original != null)
+            tpt.original.foreach {
               case dc@TypeTreeWithDeferredRefCheck() =>
                 applyRefchecksToAnnotations(dc.check()) // #2416
               case _ =>
             }
-          }
           if (!inPattern)
-            tree.setType(tree.tpe map {
+            tree.setType(tree.tpe.map {
               case AnnotatedType(anns, ul) =>
+                checkNoThrows(anns)
                 AnnotatedType(applyChecks(anns), ul)
               case tp => tp
             })
@@ -1860,7 +1868,7 @@ abstract class RefChecks extends Transform {
         result1
       } catch {
         case ex: TypeError =>
-          if (settings.debug) ex.printStackTrace()
+          if (settings.isDebug) ex.printStackTrace()
           reporter.error(tree.pos, ex.getMessage())
           tree
       } finally {
