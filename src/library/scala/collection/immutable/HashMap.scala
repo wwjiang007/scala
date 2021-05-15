@@ -254,7 +254,7 @@ final class HashMap[K, +V] private[immutable] (private[immutable] val rootNode: 
 
   override def equals(that: Any): Boolean =
     that match {
-      case map: HashMap[K, V] => (this eq map) || (this.rootNode == map.rootNode)
+      case map: HashMap[_, _] => (this eq map) || (this.rootNode == map.rootNode)
       case _ => super.equals(that)
     }
 
@@ -628,11 +628,11 @@ private final class BitmapIndexedMapNode[K, +V](
 
     if ((dataMap & bitpos) != 0) {
       val index = indexFrom(dataMap, mask, bitpos)
-      if (key == getKey(index)) getValue(index) else throw new NoSuchElementException
+      if (key == getKey(index)) getValue(index) else throw new NoSuchElementException(s"key not found: $key")
     } else if ((nodeMap & bitpos) != 0) {
       getNode(indexFrom(nodeMap, mask, bitpos)).apply(key, originalHash, keyHash, shift + BitPartitionSize)
     } else {
-      throw new NoSuchElementException
+      throw new NoSuchElementException(s"key not found: $key")
     }
   }
 

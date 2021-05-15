@@ -20,7 +20,7 @@ package internal
 
 import scala.collection.immutable
 import scala.collection.mutable.ListBuffer
-import util.{ Statistics, shortClassOfInstance }
+import util.{ ReusableInstance, Statistics, shortClassOfInstance }
 import Flags._
 import scala.annotation.tailrec
 import scala.reflect.io.{AbstractFile, NoAbstractFile}
@@ -969,6 +969,8 @@ trait Symbols extends api.Symbols { self: SymbolTable =>
       isMethod && owner.isCase && isSynthetic && name == nme.copy
 
     final def isModuleVar = hasFlag(MODULEVAR)
+
+    final def isScala3Defined = hasFlag(SCALA3X)
 
     /**
      * Is this symbol static (i.e. with no outer instance)?
@@ -3508,7 +3510,7 @@ trait Symbols extends api.Symbols { self: SymbolTable =>
    */
   class ModuleClassSymbol protected[Symbols] (owner: Symbol, pos: Position, name: TypeName)
   extends ClassSymbol(owner, pos, name) {
-    private[this] var module: Symbol        = _
+    private[this] var moduleSymbol: Symbol  = _
     private[this] var typeOfThisCache: Type = _
     private[this] var typeOfThisPeriod      = NoPeriod
 
@@ -3541,8 +3543,8 @@ trait Symbols extends api.Symbols { self: SymbolTable =>
       implicitMembersCacheValue
     }
     // The null check seems to be necessary for the reifier.
-    override def sourceModule = if (module ne null) module else companionModule
-    override def sourceModule_=(module: Symbol): Unit = { this.module = module }
+    override def sourceModule = if (moduleSymbol ne null) moduleSymbol else companionModule
+    override def sourceModule_=(module: Symbol): Unit = { this.moduleSymbol = module }
   }
 
   class PackageObjectClassSymbol protected[Symbols] (owner0: Symbol, pos0: Position)
@@ -3696,7 +3698,7 @@ trait Symbols extends api.Symbols { self: SymbolTable =>
     if (syms.isEmpty) Nil
     else {
       val syms1 = mapList(syms)(symFn)
-      val map = new SubstSymMap(syms, syms1)
+      val map = SubstSymMap(syms, syms1)
       syms1.foreach(_.modifyInfo(map))
       syms1
     }
@@ -3760,7 +3762,19 @@ trait Symbols extends api.Symbols { self: SymbolTable =>
   /** Convenience functions which derive symbols by cloning.
    */
   def cloneSymbols(syms: List[Symbol]): List[Symbol] =
-    deriveSymbols(syms, _.cloneSymbol)
+    if (syms.isEmpty) Nil
+    else {
+      val syms1 = mapList(syms)(_.cloneSymbol)
+      cloneSymbolsSubstSymMap.using { (msm: SubstSymMap) =>
+        msm.reset(syms, syms1)
+        syms1.foreach(_.modifyInfo(msm))
+      }
+      syms1
+    }
+
+  private[this] val cloneSymbolsSubstSymMap: ReusableInstance[SubstSymMap] =
+    ReusableInstance[SubstSymMap](SubstSymMap(), enabled = isCompilerUniverse)
+
   def cloneSymbolsAtOwner(syms: List[Symbol], owner: Symbol): List[Symbol] =
     deriveSymbols(syms, _ cloneSymbol owner)
 

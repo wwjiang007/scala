@@ -22,7 +22,7 @@ import mutable.{ListBuffer, LinkedHashSet}
 import Flags._
 import scala.util.control.ControlThrowable
 import scala.annotation.{tailrec, unused}
-import util.Statistics
+import util.{ReusableInstance, Statistics}
 import util.ThreeValues._
 import Variance._
 import Depth._
@@ -754,7 +754,7 @@ trait Types
      */
     def substSym(from: List[Symbol], to: List[Symbol]): Type =
       if ((from eq to) || from.isEmpty) this
-      else new SubstSymMap(from, to) apply this
+      else SubstSymMap(from, to).apply(this)
 
     /** Substitute all occurrences of `ThisType(from)` in this type by `to`.
      *
@@ -4041,6 +4041,9 @@ trait Types
   def refinedType(parents: List[Type], owner: Symbol): Type =
     refinedType(parents, owner, newScope, owner.pos)
 
+  private[this] val copyRefinedTypeSSM: ReusableInstance[SubstSymMap] =
+    ReusableInstance[SubstSymMap](SubstSymMap(), enabled = isCompilerUniverse)
+
   def copyRefinedType(original: RefinedType, parents: List[Type], decls: Scope) =
     if ((parents eq original.parents) && (decls eq original.decls)) original
     else {
@@ -4055,9 +4058,10 @@ trait Types
         val syms2 = result.decls.toList
         val resultThis = result.typeSymbol.thisType
         val substThisMap = new SubstThisMap(original.typeSymbol, resultThis)
-        val substMap = new SubstSymMap(syms1, syms2)
-        for (sym <- syms2)
-          sym.modifyInfo(info => substMap.apply(substThisMap.apply(info)))
+        copyRefinedTypeSSM.using { (msm: SubstSymMap) =>
+          msm.reset(syms1, syms2)
+          syms2.foreach(_.modifyInfo(info => msm.apply(substThisMap.apply(info))))
+        }
       }
       result
     }

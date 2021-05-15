@@ -37,7 +37,7 @@ abstract class OverridingPairs extends SymbolPairs {
      *  including bridges. But it may be refined in subclasses.
      */
     override protected def exclude(sym: Symbol) = (
-         sym.isPrivateLocal
+        (sym.isPrivateLocal && sym.isParamAccessor)
       || sym.isArtifact
       || sym.isConstructor
       || (sym.isPrivate && sym.owner != base) // Privates aren't inherited. Needed for pos/t7475a.scala
@@ -54,8 +54,20 @@ abstract class OverridingPairs extends SymbolPairs {
       && (lowMemberType matches (self memberType high))
     ) // TODO we don't call exclude(high), should we?
 
-    override def skipOwnerPair(lowClass: Symbol, highClass: Symbol): Boolean =
-      lowClass.isJavaDefined && highClass.isJavaDefined // javac is already checking this better than we could
+    override protected def skipOwnerPair(lowClass: Symbol, highClass: Symbol): Boolean = {
+      // Two Java-defined methods can be skipped in most cases, as javac will check the overrides; skipping is
+      // actually necessary to avoid false errors, as Java doesn't have the Scala's linearization rules. However, when
+      // a Java interface is mixed into a Scala class, mixed-in default methods need to go through override checking
+      // (neg/t12394). Checking is also required if the "mixed-in" Java interface method is abstract (neg/t12380).
+      lowClass.isJavaDefined && highClass.isJavaDefined && {
+        !lowClass.isJavaInterface && !highClass.isJavaInterface || {
+          !base.info.parents.tail.exists(p => {
+            val psym = p.typeSymbol
+            psym.isNonBottomSubClass(lowClass) || psym.isNonBottomSubClass(highClass)
+          })
+        }
+      }
+    }
   }
 
   private def bothJavaOwnedAndEitherIsField(low: Symbol, high: Symbol): Boolean = {
